@@ -37,9 +37,9 @@ export function AppLayout() {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <div className="user-avatar">{user?.name?.charAt(0).toUpperCase() || 'U'}</div>
+          <div className="user-avatar">{user?.nome?.charAt(0).toUpperCase() || 'U'}</div>
           <div className="user-summary">
-            <strong>{user?.name}</strong>
+            <strong>{user?.nome}</strong>
             <span>{user?.email}</span>
           </div>
           <button className="icon-button" onClick={handleLogout} title="Sair" aria-label="Sair">↪</button>
