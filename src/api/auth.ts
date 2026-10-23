@@ -2,7 +2,7 @@ import { apiRequest } from './client'
 
 export type User = {
   id: string
-  name: string
+  nome: string
   email: string
 }
 
@@ -17,7 +17,7 @@ const demoMode = import.meta.env.VITE_USE_MOCK_API !== 'false' && import.meta.en
 function demoUser(name: string, email: string): AuthResponse {
   return {
     token: 'demo-token-local',
-    usuario: { id: 'demo', name, email },
+    usuario: { id: 'demo', nome: name, email },
   }
 }
 

@@ -15,7 +15,7 @@ export function DashboardPage() {
       <header className="page-header">
         <div>
           <span className="eyebrow">CENTRAL DE COMPRAS</span>
-          <h1>Olá, {user?.name?.split(' ')[0]}.</h1>
+          <h1>Olá, {user?.nome?.split(' ')[0]}.</h1>
           <p>O que você quer resolver hoje?</p>
         </div>
         <div className="safety-pill"><span>●</span> Proteções ativas</div>
