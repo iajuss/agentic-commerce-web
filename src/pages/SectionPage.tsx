@@ -1,34 +1,56 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { ArrowRight, KeyRound, Package, ScrollText, Search, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react'
 
-const content = {
-  request: { eyebrow: 'COMPRA POR INTENÇÃO', title: 'O que você precisa?', text: 'Descreva o produto, o contexto de uso e qualquer limite importante.', action: 'Buscar recomendações' },
-  policies: { eyebrow: 'PERFIL E GOVERNANÇA', title: 'Políticas de compra', text: 'Defina teto, categorias, lojas e o nível de autonomia do seu agente.', action: 'Criar política' },
-  profile: { eyebrow: 'PREFERÊNCIAS', title: 'Seu perfil', text: 'Orçamento, preferências e endereço de entrega ficam centralizados aqui.', action: 'Completar perfil' },
-  authorizations: { eyebrow: 'APROVAÇÃO E PAGAMENTO', title: 'Autorizações', text: 'Acompanhe e revogue permissões limitadas antes que sejam usadas.', action: 'Ver como funciona' },
-  orders: { eyebrow: 'PÓS-COMPRA', title: 'Seus pedidos', text: 'Comprovantes, status, cancelamentos, devoluções e chamados.', action: 'Atualizar pedidos' },
-  audit: { eyebrow: 'TRANSPARÊNCIA', title: 'Trilha de auditoria', text: 'Cada decisão do agente aparece aqui de forma clara e cronológica.', action: 'Filtrar eventos' },
-} as const
+type Section = 'request' | 'policies' | 'profile' | 'authorizations' | 'orders' | 'audit'
 
-export function SectionPage({ section }: { section: keyof typeof content }) {
+const content: Record<Section, { eyebrow: string; title: string; text: string; action: string; icon: LucideIcon }> = {
+  request: { eyebrow: 'Nova compra', title: 'Descreva o que você precisa', text: 'Escreva como falaria com alguém de confiança: para que serve, quanto quer gastar e o que não pode faltar.', action: 'Buscar ofertas', icon: Search },
+  policies: { eyebrow: 'Perfil e governança', title: 'Políticas de compra', text: 'Defina teto, categorias, lojas e o nível de autonomia do seu agente.', action: 'Nova política', icon: ShieldCheck },
+  profile: { eyebrow: 'Preferências', title: 'Seu perfil', text: 'Orçamento, preferências e endereço de entrega ficam centralizados aqui.', action: 'Completar perfil', icon: UserRound },
+  authorizations: { eyebrow: 'Aprovação e pagamento', title: 'Autorizações', text: 'Acompanhe e revogue permissões limitadas antes que sejam usadas.', action: 'Ver como funciona', icon: KeyRound },
+  orders: { eyebrow: 'Pós-compra', title: 'Seus pedidos', text: 'Comprovantes, status, cancelamentos, devoluções e chamados.', action: 'Atualizar pedidos', icon: Package },
+  audit: { eyebrow: 'Transparência', title: 'Auditoria', text: 'Cada decisão do agente e cada ação sua, em ordem, com o motivo.', action: 'Filtrar eventos', icon: ScrollText },
+}
+
+export function SectionPage({ section }: { section: Section }) {
   const item = content[section]
   const isRequest = section === 'request'
+  const location = useLocation()
+  // O painel inicial envia o texto já digitado em state.description.
+  const initialDescription = (location.state as { description?: string } | null)?.description ?? ''
+  const Icon = item.icon
 
   return (
-    <div className="section-page page-enter">
-      <header className="page-header compact">
-        <div><span className="eyebrow">{item.eyebrow}</span><h1>{item.title}</h1><p>{item.text}</p></div>
+    <div className="page page-enter">
+      <header className="page-header">
+        <div><span className="text-label">{item.eyebrow}</span><h1>{item.title}</h1><p>{item.text}</p></div>
       </header>
-      <section className="panel section-placeholder">
-        {isRequest ? (
-          <>
-            <label className="intent-input-label" htmlFor="intent">Sua intenção</label>
-            <textarea id="intent" placeholder="Ex.: Quero um fone sem fio confortável para reuniões, com cancelamento de ruído e até R$ 450." />
-            <div className="suggestion-chips"><span>+ Definir prazo</span><span>+ Categoria</span><span>+ Loja preferida</span></div>
-          </>
-        ) : (
-          <div className="empty-state"><span>✦</span><strong>Esta etapa já tem uma rota reservada.</strong><p>A interface funcional entra no próximo incremento, conectada ao contrato da API.</p></div>
-        )}
-        <div className="section-actions"><Link to="/inicio" className="secondary-button">Voltar</Link><button className="primary-button">{item.action} <span>→</span></button></div>
+      <section className="panel">
+        <div className="panel-body stack-lg">
+          {isRequest ? (
+            <div className="field">
+              <label className="field-label" htmlFor="descricao">O que você precisa</label>
+              <textarea
+                className="input"
+                id="descricao"
+                rows={4}
+                defaultValue={initialDescription}
+                placeholder="Ex.: um fone sem fio confortável para reuniões, com cancelamento de ruído e até R$ 450."
+              />
+              <div className="row"><span className="field-hint">Se quiser, inclua:</span><span className="tag">Prazo</span><span className="tag">Categoria</span><span className="tag">Loja preferida</span></div>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <span className="empty-state-icon"><Icon aria-hidden="true" /></span>
+              <strong>Esta etapa já tem uma rota reservada.</strong>
+              <p>A interface funcional entra no próximo incremento, conectada ao contrato da API.</p>
+            </div>
+          )}
+          <div className="section-actions">
+            <Link to="/inicio" className="btn btn-secondary">Voltar</Link>
+            <button className="btn btn-primary" type="button">{item.action} <ArrowRight aria-hidden="true" /></button>
+          </div>
+        </div>
       </section>
     </div>
   )

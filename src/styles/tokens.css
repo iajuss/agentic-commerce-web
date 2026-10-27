@@ -1,0 +1,164 @@
+/* ==========================================================================
+   agentic · tokens de design
+   Única fonte de cores, fontes e medidas do app: nenhum outro arquivo define
+   cor. Regras de uso: docs/identidade-visual.md.
+   Os nomes antigos (--ink, --muted, --paper, --white, --line, --green,
+   --green-dark, --mint, --lime, --orange) continuam valendo e mudam de valor
+   no modo escuro. Variáveis novas têm um comentário dizendo para que servem.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Manrope:wght@600;700;800&display=swap');
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* ---- Cores de base (nomes que o projeto já usa) ---------------------- */
+  --ink: #14211d;          /* texto principal */
+  --muted: #5c6964;        /* texto secundário. Era #66736e: não passava AA sobre --paper (4,49:1) */
+  --paper: #f5f4ef;        /* fundo da página */
+  --white: #fffefa;        /* superfície de cards, painéis e campos */
+  --line: #dcded7;         /* divisórias decorativas (não use como borda de campo) */
+  --green: #1f5a48;        /* cor de ação: botão primário, links, foco */
+  --green-dark: #173e33;   /* menu lateral e hover do botão primário */
+  --mint: #c9f17a;         /* sinal do agente sobre fundo escuro: destaque, "recomendada" */
+  --lime: #ddff91;         /* hover do mint, realce de texto */
+  --orange: #f7a867;       /* "precisa de você": aprovação manual pendente (só preenchimento) */
+
+  /* ---- Cores novas ------------------------------------------------------ */
+  --surface-2: #ecede6;    /* superfície rebaixada: tags, cabeçalho de tabela, trilho de barras */
+  --line-strong: #7f8a85;  /* borda de campos e controles (3,5:1, exigido pela WCAG 1.4.11) */
+  --green-hover: #173e33;  /* hover do botão primário (no escuro vira lima) */
+  --green-soft: #e3ede4;   /* fundo de item selecionado e selo de marca */
+  --on-green: #fffefa;     /* texto sobre --green (no escuro vira escuro) */
+  --lime-deep: #5b8a12;    /* ponto da lupa sobre fundo claro (o mint some no papel: 1,2:1) */
+  --on-accent: #173e33;    /* texto sobre --mint, --lime e --orange */
+  --sidebar-bg: var(--green-dark);   /* fundo do menu lateral */
+  --sidebar-active: #24503f;         /* item ativo do menu lateral */
+  --on-dark: #edf3ee;                /* texto principal sobre fundo verde-escuro */
+  --on-dark-muted: #adc3ba;          /* texto secundário sobre fundo verde-escuro */
+  --on-dark-hover: rgba(255, 255, 255, .07); /* hover de item sobre fundo escuro */
+  --on-dark-line: rgba(255, 255, 255, .14);  /* divisória e borda sobre fundo escuro */
+  --on-dark-ring: rgba(255, 255, 255, .05);  /* anel decorativo do hero e do login */
+  --focus: #1f5a48;        /* anel de foco */
+  --focus-on-dark: #ddff91;/* anel de foco dentro do menu lateral e de áreas escuras */
+  --overlay: rgba(20, 33, 29, .48); /* fundo de modal */
+
+  /* ---- Semânticas: texto/ícone, fundo e borda --------------------------- */
+  --success: #2d6a2f;      --success-bg: #e5f1e1;   --success-line: #a9cfa4;
+  --warning: #8a4706;      --warning-bg: #fdefdc;   --warning-line: #f2c48f;
+  --danger: #a8352a;       --danger-bg: #fbeae6;    --danger-line: #eba99d;
+  --danger-hover: #8c2b22; --on-danger: #fffefa;
+  --info: #2b5c88;         --info-bg: #e5eef7;      --info-line: #a9c4de;
+  --neutral: #5c6964;      --neutral-bg: #eceee8;   --neutral-line: #c9cec7;
+
+  /* ---- Sombras (tingidas de verde, nunca preto puro) -------------------- */
+  --shadow-sm: 0 1px 2px rgba(20, 33, 29, .06);
+  --shadow-md: 0 1px 3px rgba(20, 33, 29, .06), 0 6px 16px -4px rgba(20, 33, 29, .10);
+  --shadow-lg: 0 2px 6px rgba(20, 33, 29, .06), 0 24px 48px -12px rgba(20, 33, 29, .20);
+}
+
+/* ---- Modo escuro automático (siga o sistema). Para desligar, apague este bloco. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ink: #e9eee8;        --muted: #a2b0aa;
+    --paper: #0f1714;      --white: #17211d;
+    --line: #2b3832;       --line-strong: #66766f;
+    --green: #c9f17a;      --green-dark: #0b1411;
+    --green-hover: #ddff91; --green-soft: #1f3128;
+    --on-green: #0f1714;   --surface-2: #1f2b26;
+    --lime-deep: #c9f17a;
+    --sidebar-bg: #0b1411; --sidebar-active: #1c2b25;
+    --on-dark: #e9eee8;    --on-dark-muted: #a2b0aa;
+    --focus: #ddff91;      --overlay: rgba(0, 0, 0, .6);
+    --success: #9bd49a;    --success-bg: #182a1c;   --success-line: #36603a;
+    --warning: #f4b46f;    --warning-bg: #2e2114;   --warning-line: #6b4a24;
+    --danger: #ff9d8c;     --danger-bg: #351a17;    --danger-line: #7a3a31;
+    --danger-hover: #ffab9b; --on-danger: #1a0f0d;
+    --info: #9fc6ee;       --info-bg: #14212e;      --info-line: #33506d;
+    --neutral: #a2b0aa;    --neutral-bg: #222c28;   --neutral-line: #3c4a44;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-md: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 20px -6px rgba(0, 0, 0, .5);
+    --shadow-lg: 0 2px 6px rgba(0, 0, 0, .4), 0 24px 48px -12px rgba(0, 0, 0, .65);
+  }
+}
+
+/* ---- Modo escuro forçado (data-theme="dark" no <html> ou num contêiner) */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e9eee8;        --muted: #a2b0aa;
+  --paper: #0f1714;      --white: #17211d;
+  --line: #2b3832;       --line-strong: #66766f;
+  --green: #c9f17a;      --green-dark: #0b1411;
+  --green-hover: #ddff91; --green-soft: #1f3128;
+  --on-green: #0f1714;   --surface-2: #1f2b26;
+  --lime-deep: #c9f17a;
+  --sidebar-bg: #0b1411; --sidebar-active: #1c2b25;
+  --on-dark: #e9eee8;    --on-dark-muted: #a2b0aa;
+  --focus: #ddff91;      --overlay: rgba(0, 0, 0, .6);
+  --success: #9bd49a;    --success-bg: #182a1c;   --success-line: #36603a;
+  --warning: #f4b46f;    --warning-bg: #2e2114;   --warning-line: #6b4a24;
+  --danger: #ff9d8c;     --danger-bg: #351a17;    --danger-line: #7a3a31;
+  --danger-hover: #ffab9b; --on-danger: #1a0f0d;
+  --info: #9fc6ee;       --info-bg: #14212e;      --info-line: #33506d;
+  --neutral: #a2b0aa;    --neutral-bg: #222c28;   --neutral-line: #3c4a44;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-md: 0 1px 3px rgba(0, 0, 0, .4), 0 8px 20px -6px rgba(0, 0, 0, .5);
+  --shadow-lg: 0 2px 6px rgba(0, 0, 0, .4), 0 24px 48px -12px rgba(0, 0, 0, .65);
+}
+
+/* Tokens que não mudam com o tema */
+:root {
+  /* ---- Tipografia ------------------------------------------------------- */
+  --font-brand: 'Manrope', 'Segoe UI', system-ui, sans-serif;  /* títulos, números grandes */
+  --font-body: 'DM Sans', 'Segoe UI', system-ui, sans-serif;   /* todo o resto */
+
+  /* Escala: tamanho / altura de linha / peso / espaçamento entre letras */
+  --text-display: 52px;  --leading-display: 1.04; --tracking-display: -0.035em; /* 800, só login e hero */
+  --text-h1: 36px;       --leading-h1: 1.2;       --tracking-h1: -0.025em;      /* 700 */
+  --text-h2: 26px;       --leading-h2: 1.3;       --tracking-h2: -0.02em;       /* 700 */
+  --text-h3: 19px;       --leading-h3: 1.35;      --tracking-h3: -0.01em;       /* 700 */
+  --text-body: 16px;     --leading-body: 1.6;                                   /* 400 */
+  --text-small: 14px;    --leading-small: 1.5;                                  /* 400 */
+  --text-caption: 13px;  --leading-caption: 1.4;                                /* 500 */
+  --text-label: 12px;    --leading-label: 1.3;    --tracking-label: 0.1em;      /* 700, caixa alta */
+
+  /* ---- Espaçamento (base 4px) ------------------------------------------- */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
+  --space-12: 48px; --space-16: 64px;
+
+  /* ---- Raios ------------------------------------------------------------ */
+  --radius-xs: 4px;     /* tags pequenas */
+  --radius-sm: 6px;     /* mensagens inline, chips quadrados */
+  --radius-md: 8px;     /* botões e campos */
+  --radius-lg: 12px;    /* cards e painéis */
+  --radius-xl: 16px;    /* blocos de destaque (hero) */
+  --radius-pill: 999px; /* selos de status */
+
+  /* ---- Controles e layout ----------------------------------------------- */
+  --control-h: 44px;       /* altura mínima de botão e campo (alvo de toque) */
+  --control-h-sm: 36px;    /* botão compacto (tabelas, cards) */
+  --sidebar-width: 248px;
+  --content-max: 1160px;
+  --focus-width: 2px;      /* espessura do anel de foco */
+  --focus-offset: 2px;     /* distância do anel até o elemento */
+
+  /* ---- Movimento -------------------------------------------------------- */
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --text-display: 38px;
+    --text-h1: 30px;
+    --text-h2: 23px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; }
+}
