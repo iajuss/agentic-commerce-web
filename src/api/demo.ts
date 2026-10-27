@@ -17,3 +17,20 @@ export function nowIso(offsetMinutes = 0) {
 export function notFound(message: string): never {
   throw new ApiError(message, 404)
 }
+
+// Trilha de auditoria simulada: cada ação do modo demo grava um evento, como a API fará.
+export type DemoActor = 'voce' | 'agente' | 'politica' | 'sistema'
+export type DemoEvent = {
+  id: string
+  tipo: string
+  ator: DemoActor
+  descricao: string
+  criado_em: string
+  dados: Record<string, unknown>
+}
+
+export const demoEvents: DemoEvent[] = []
+
+export function recordDemoEvent(tipo: string, ator: DemoActor, descricao: string, dados: Record<string, unknown> = {}, criadoEm = nowIso()) {
+  demoEvents.push({ id: demoId(), tipo, ator, descricao, criado_em: criadoEm, dados })
+}
