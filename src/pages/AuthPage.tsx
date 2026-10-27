@@ -1,7 +1,17 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Brand } from '../components/Brand'
+import { demoMode } from '../api/auth'
+import { ApiError } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+
+// Junta a mensagem geral da API com os erros de cada campo do formulário.
+function errorMessage(caught: unknown) {
+  if (caught instanceof ApiError && caught.details) {
+    return [caught.message, ...Object.values(caught.details)].join(' ')
+  }
+  return caught instanceof Error ? caught.message : 'Não foi possível continuar.'
+}
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { isAuthenticated, login, register } = useAuth()
@@ -25,7 +35,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       const destination = (location.state as { from?: string } | null)?.from || '/inicio'
       navigate(destination, { replace: true })
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Não foi possível continuar.')
+      setError(errorMessage(caught))
     } finally {
       setLoading(false)
     }
@@ -91,7 +101,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
             {isRegister ? 'Já tem uma conta?' : 'Ainda não tem conta?'}{' '}
             <Link to={isRegister ? '/entrar' : '/cadastro'}>{isRegister ? 'Entrar' : 'Criar agora'}</Link>
           </p>
-          <div className="demo-note"><span>i</span> Modo de demonstração ativo no ambiente local.</div>
+          {demoMode && <div className="demo-note"><span>i</span> Modo de demonstração ativo no ambiente local.</div>}
         </div>
       </section>
     </div>

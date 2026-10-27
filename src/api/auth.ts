@@ -6,13 +6,13 @@ export type User = {
   email: string
 }
 
-type AuthResponse = {
+export type AuthResponse = {
   token: string
-  usuario?: User
-  user?: User
+  usuario: User
 }
 
-const demoMode = import.meta.env.VITE_USE_MOCK_API !== 'false' && import.meta.env.DEV
+// Modo de demonstração só quando pedido no .env (VITE_USE_MOCK_API=true) e fora do build de produção.
+export const demoMode = import.meta.env.VITE_USE_MOCK_API === 'true' && import.meta.env.DEV
 
 function demoUser(name: string, email: string): AuthResponse {
   return {
@@ -25,7 +25,7 @@ export async function signIn(email: string, password: string): Promise<AuthRespo
   if (demoMode) {
     await new Promise((resolve) => window.setTimeout(resolve, 450))
     if (!email || !password) throw new Error('Preencha e-mail e senha.')
-    return demoUser('Davi', email)
+    return demoUser(email.split('@')[0], email)
   }
 
   return apiRequest<AuthResponse>('/sessoes', {
@@ -40,6 +40,7 @@ export async function signUp(name: string, email: string, password: string): Pro
     return demoUser(name, email)
   }
 
+  // A API cadastra sem devolver token, então o login vem logo em seguida.
   await apiRequest('/usuarios', {
     method: 'POST',
     body: { nome: name, email, senha: password },
