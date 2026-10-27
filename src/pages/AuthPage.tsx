@@ -1,16 +1,33 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowRight, CircleAlert, Info } from 'lucide-react'
 import { Brand } from '../components/Brand'
 import { demoMode } from '../api/auth'
 import { ApiError } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 
-// Junta a mensagem geral da API com os erros de cada campo do formulário.
-function errorMessage(caught: unknown) {
-  if (caught instanceof ApiError && caught.details) {
-    return [caught.message, ...Object.values(caught.details)].join(' ')
+type Field = 'nome' | 'email' | 'senha'
+type FormErrors = { message: string; fields: Partial<Record<Field, string>> }
+
+const FIELDS: Field[] = ['nome', 'email', 'senha']
+
+// Os erros por campo da API ("detalhes") vão para baixo de cada campo; o resto vai para a mensagem geral.
+function formErrors(caught: unknown): FormErrors {
+  if (!(caught instanceof ApiError)) {
+    return { message: caught instanceof Error ? caught.message : 'Não foi possível continuar.', fields: {} }
   }
-  return caught instanceof Error ? caught.message : 'Não foi possível continuar.'
+  const fields: FormErrors['fields'] = {}
+  const others: string[] = []
+  for (const [field, problem] of Object.entries(caught.details ?? {})) {
+    if (FIELDS.includes(field as Field)) fields[field as Field] = problem
+    else others.push(problem)
+  }
+  return { message: [caught.message, ...others].join(' '), fields }
+}
+
+function FieldError({ id, text }: { id: string; text?: string }) {
+  if (!text) return null
+  return <p className="field-error" id={id}><CircleAlert aria-hidden="true" />{text}</p>
 }
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
@@ -21,13 +38,13 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState<FormErrors | null>(null)
 
   if (isAuthenticated) return <Navigate to="/inicio" replace />
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError('')
+    setErrors(null)
     setLoading(true)
     try {
       if (mode === 'register') await register(name, email, password)
@@ -35,73 +52,120 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       const destination = (location.state as { from?: string } | null)?.from || '/inicio'
       navigate(destination, { replace: true })
     } catch (caught) {
-      setError(errorMessage(caught))
+      setErrors(formErrors(caught))
     } finally {
       setLoading(false)
     }
   }
 
   const isRegister = mode === 'register'
+  const fieldError = errors?.fields ?? {}
 
   return (
     <div className="auth-page">
-      <section className="auth-story">
-        <Brand />
+      <section className="auth-story" aria-label="Sobre o agentic">
+        <span className="auth-ring" aria-hidden="true" />
+        <Brand className="auth-brand" />
         <div className="auth-story-copy">
-          <span className="eyebrow">COMPRAS COM AUTONOMIA CONTROLADA</span>
-          <h1>Você define os limites.<br />O agente cuida do resto.</h1>
-          <p>Transforme uma intenção em uma compra segura, explicável e alinhada ao seu orçamento.</p>
+          <span className="text-label">Compra por intenção</span>
+          <h1 className="text-display">Você diz o que precisa. O agente busca, compara e explica.</h1>
+          <p>Ele compra só dentro das regras que você define: teto por compra, categorias, lojas e quando pode agir sozinho.</p>
         </div>
-        <div className="intent-card" aria-hidden="true">
-          <div className="intent-prompt">
-            <span className="spark">✦</span>
-            <p>“Preciso de um fone confortável para trabalhar, até R$ 450.”</p>
-          </div>
-          <div className="intent-route">
-            <span>Intenção entendida</span><i />
-            <span>4 ofertas comparadas</span><i />
-            <strong>Dentro da sua política</strong>
+        <div className="auth-example" aria-hidden="true">
+          <p className="auth-example-prompt">Um fone confortável para reuniões, até R$ 450.</p>
+          <div className="auth-route">
+            <span>Sua descrição</span><ArrowRight />
+            <span>Ofertas explicadas</span><ArrowRight />
+            <strong>Você aprova</strong>
           </div>
         </div>
-        <p className="auth-caption">Decisões transparentes. Autorizações de uso único. Controle sempre seu.</p>
       </section>
 
       <section className="auth-panel">
-        <div className="mobile-brand"><Brand /></div>
         <div className="auth-form-wrap">
-          <span className="step-label">ACESSO SEGURO</span>
-          <h2>{isRegister ? 'Crie sua conta' : 'Que bom ter você de volta'}</h2>
-          <p className="auth-subtitle">
-            {isRegister ? 'Comece definindo como seu agente pode comprar.' : 'Entre para acompanhar suas intenções e decisões.'}
-          </p>
+          <Brand className="mobile-brand" />
+          <nav className="segmented" aria-label="Acesso">
+            <NavLink to="/entrar" replace>Entrar</NavLink>
+            <NavLink to="/cadastro" replace>Criar conta</NavLink>
+          </nav>
+
+          <div className="auth-heading">
+            <h2>{isRegister ? 'Crie sua conta' : 'Que bom ver você'}</h2>
+            <p className="text-muted">
+              {isRegister ? 'Leva um minuto. Depois você define suas políticas de compra.' : 'Entre para acompanhar suas compras e políticas.'}
+            </p>
+          </div>
 
           <form onSubmit={handleSubmit} className="auth-form">
-            {isRegister && (
-              <label>
-                Nome
-                <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Como podemos chamar você?" required />
-              </label>
+            {errors?.message && (
+              <div className="alert alert-danger" role="alert">
+                <CircleAlert aria-hidden="true" />
+                <p>{errors.message}</p>
+              </div>
             )}
-            <label>
-              E-mail
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com" autoComplete="email" required />
-            </label>
-            <label>
-              Senha
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 8 caracteres" minLength={8} autoComplete={isRegister ? 'new-password' : 'current-password'} required />
-            </label>
-            {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="primary-button" disabled={loading}>
-              {loading ? 'Preparando seu acesso…' : isRegister ? 'Criar conta' : 'Entrar'}
-              {!loading && <span aria-hidden="true">→</span>}
+            {isRegister && (
+              <div className="field">
+                <label className="field-label" htmlFor="nome">Nome</label>
+                <input
+                  className="input"
+                  id="nome"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Como podemos chamar você?"
+                  autoComplete="name"
+                  aria-invalid={Boolean(fieldError.nome)}
+                  aria-describedby={fieldError.nome ? 'nome-erro' : undefined}
+                  required
+                />
+                <FieldError id="nome-erro" text={fieldError.nome} />
+              </div>
+            )}
+            <div className="field">
+              <label className="field-label" htmlFor="email">E-mail</label>
+              <input
+                className="input"
+                id="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="voce@exemplo.com"
+                autoComplete="email"
+                aria-invalid={Boolean(fieldError.email)}
+                aria-describedby={fieldError.email ? 'email-erro' : undefined}
+                required
+              />
+              <FieldError id="email-erro" text={fieldError.email} />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="senha">Senha</label>
+              <input
+                className="input"
+                id="senha"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                minLength={8}
+                autoComplete={isRegister ? 'new-password' : 'current-password'}
+                aria-invalid={Boolean(fieldError.senha)}
+                aria-describedby={fieldError.senha ? 'senha-erro' : isRegister ? 'senha-dica' : undefined}
+                required
+              />
+              {isRegister && !fieldError.senha && (
+                <span className="field-hint" id="senha-dica">Pelo menos 8 caracteres. É com ela que você aprova compras.</span>
+              )}
+              <FieldError id="senha-erro" text={fieldError.senha} />
+            </div>
+            <button className="btn btn-primary btn-block" aria-busy={loading} disabled={loading}>
+              {loading ? (isRegister ? 'Criando conta…' : 'Entrando…') : isRegister ? 'Criar conta' : 'Entrar'}
             </button>
           </form>
 
-          <p className="auth-switch">
-            {isRegister ? 'Já tem uma conta?' : 'Ainda não tem conta?'}{' '}
-            <Link to={isRegister ? '/entrar' : '/cadastro'}>{isRegister ? 'Entrar' : 'Criar agora'}</Link>
-          </p>
-          {demoMode && <div className="demo-note"><span>i</span> Modo de demonstração ativo no ambiente local.</div>}
+          {demoMode && (
+            <div className="alert alert-info">
+              <Info aria-hidden="true" />
+              <p>Modo de demonstração: qualquer e-mail e senha entram, e nada é salvo.</p>
+            </div>
+          )}
         </div>
       </section>
     </div>

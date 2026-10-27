@@ -2,6 +2,9 @@
 
 Front-end React do projeto Agentic Commerce: uma experiência de compra por intenção com autonomia controlada.
 
+Antes de criar ou alterar uma tela, leia [`docs/identidade-visual.md`](docs/identidade-visual.md): cores, tipografia,
+componentes, ícones e tom de voz são obrigatórios. As regras gerais do projeto estão em [`AGENTS.md`](AGENTS.md).
+
 ## Executar localmente
 
 ```bash
@@ -32,7 +35,7 @@ Nenhuma credencial deve ser commitada. O arquivo `.env` está ignorado pelo Git.
 
 - `pnpm dev`: servidor de desenvolvimento
 - `pnpm build`: valida os tipos e gera o build de produção
-- `pnpm lint`: executa a análise estática
+- `pnpm lint`: executa a análise estática e confere as regras da identidade visual
 - `pnpm preview`: abre localmente o build de produção
 
 ## Rotas já preparadas

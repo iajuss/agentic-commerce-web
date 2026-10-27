@@ -1,4 +1,7 @@
-import { Link } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, Search, ShieldCheck } from 'lucide-react'
+import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../contexts/AuthContext'
 
 const journey = [
@@ -7,56 +10,78 @@ const journey = [
   { number: '03', title: 'Aprove ou automatize', text: 'Você confirma ou deixa o agente agir dentro das políticas.' },
 ]
 
+const examples = ['Fone confortável para reuniões, até R$ 450', 'Cadeira de escritório até R$ 900']
+
 export function DashboardPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const [description, setDescription] = useState('')
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    navigate('/compras/nova', { state: { description } })
+  }
 
   return (
-    <div className="dashboard page-enter">
+    <div className="page page-enter">
       <header className="page-header">
         <div>
-          <span className="eyebrow">CENTRAL DE COMPRAS</span>
           <h1>Olá, {user?.nome?.split(' ')[0]}.</h1>
           <p>O que você quer resolver hoje?</p>
         </div>
-        <div className="safety-pill"><span>●</span> Proteções ativas</div>
+        <span className="badge badge-success"><ShieldCheck aria-hidden="true" />Proteções ativas</span>
       </header>
 
-      <section className="hero-card">
-        <div className="hero-copy">
-          <span className="hero-kicker">NOVA INTENÇÃO</span>
-          <h2>Conte o que você precisa.<br />Sem procurar produto por produto.</h2>
-          <p>Seu agente compara preço, frete, prazo e reputação — sempre respeitando as suas regras.</p>
-          <Link to="/compras/nova" className="primary-button hero-action">Começar uma compra <span>→</span></Link>
-        </div>
-        <div className="orbital-visual" aria-hidden="true">
-          <div className="orbit orbit-one"><span>R$</span></div>
-          <div className="orbit orbit-two"><span>✓</span></div>
-          <div className="orbit-core">✦</div>
-          <p>Decisão<br /><strong>explicável</strong></p>
+      <section className="hero" aria-labelledby="nova-compra">
+        <span className="hero-ring" aria-hidden="true" />
+        <span className="text-label">Nova compra</span>
+        <h2 id="nova-compra">O que você precisa comprar?</h2>
+        <form className="composer" onSubmit={handleSubmit}>
+          <Search aria-hidden="true" />
+          <label className="sr-only" htmlFor="descricao">Descreva a compra</label>
+          <input
+            id="descricao"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Ex.: fone para reuniões, até R$ 450"
+          />
+          <button className="btn btn-primary" type="submit">Buscar ofertas <ArrowRight aria-hidden="true" /></button>
+        </form>
+        <div className="row">
+          {examples.map((example) => (
+            <button key={example} className="chip" type="button" onClick={() => setDescription(example)}>{example}</button>
+          ))}
         </div>
       </section>
 
-      <section className="dashboard-grid">
-        <article className="panel journey-panel">
-          <div className="panel-heading"><div><span className="eyebrow">COMO FUNCIONA</span><h3>Da intenção à compra</h3></div></div>
-          <div className="journey-list">
+      <div className="dashboard-grid">
+        <section className="panel" aria-labelledby="como-funciona">
+          <div className="panel-header"><h2 id="como-funciona">Da descrição à compra</h2></div>
+          <ol className="journey-list">
             {journey.map((item) => (
-              <div className="journey-item" key={item.number}>
-                <span>{item.number}</span>
+              <li className="journey-item" key={item.number}>
+                <span className="journey-number">{item.number}</span>
                 <div><strong>{item.title}</strong><p>{item.text}</p></div>
-              </div>
+              </li>
             ))}
-          </div>
-        </article>
+          </ol>
+        </section>
 
-        <article className="panel policy-panel">
-          <div className="panel-heading"><div><span className="eyebrow">SEUS LIMITES</span><h3>Política principal</h3></div><Link to="/politicas">Editar</Link></div>
-          <div className="policy-limit"><span>Limite por compra</span><strong>R$ 500</strong></div>
-          <div className="meter"><i /></div>
-          <div className="policy-tags"><span>Eletrônicos</span><span>Casa</span><span>Livros</span></div>
-          <div className="autonomy-row"><span className="status-dot" /><div><strong>Aprovação manual</strong><p>Você confirma antes do pagamento.</p></div></div>
-        </article>
-      </section>
+        <section className="panel" aria-labelledby="seus-limites">
+          <div className="panel-header">
+            <h2 id="seus-limites">Política principal</h2>
+            <Link className="btn btn-ghost btn-sm" to="/politicas">Editar</Link>
+          </div>
+          <div className="panel-body stack">
+            <div className="policy-limit"><span>Teto por compra</span><strong className="price">R$ 500</strong></div>
+            <div className="row"><span className="tag">Eletrônicos</span><span className="tag">Casa</span><span className="tag">Livros</span></div>
+            <div className="autonomy-row">
+              <StatusBadge kind="autonomia" status="manual" />
+              <p className="text-small text-muted">Você confirma cada compra antes do pagamento.</p>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   )
 }
