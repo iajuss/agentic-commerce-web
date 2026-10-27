@@ -178,6 +178,30 @@ textarea.input { min-height: 120px; resize: vertical; line-height: var(--leading
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton, .btn[aria-busy="true"]::before, .input-group[aria-busy="true"]::after { animation-duration: 0s; } }
 
+/* ---- Modal (use <dialog> com showModal: prende o foco e fecha no Esc) ------ */
+.modal {
+  width: min(520px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; overflow: auto;
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  background: var(--white); color: var(--ink); box-shadow: var(--shadow-lg);
+}
+.modal::backdrop { background: var(--overlay); }
+.modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--line); }
+.modal-header h2 { font-size: var(--text-h3); line-height: var(--leading-h3); }
+.modal-body { display: grid; gap: var(--space-5); padding: var(--space-6); }
+.modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
+
+/* Resumo em pares rótulo/valor (valor máximo, loja, validade) */
+.summary-list { margin: 0; display: grid; border: 1px solid var(--line); border-radius: var(--radius-md); }
+.summary-list > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-1) var(--space-4); padding: var(--space-3) var(--space-4); }
+.summary-list > div + div { border-top: 1px solid var(--line); }
+.summary-list dt { color: var(--muted); font-size: var(--text-small); }
+.summary-list dd { margin: 0; font-weight: 700; text-align: right; }
+
+@media (max-width: 560px) {
+  .modal { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .modal-actions .btn { flex: 1 1 100%; }
+}
+
 /* ---- Selos de status (sempre com ícone + texto) --------------------------- */
 .badge {
   --badge-fg: var(--neutral); --badge-bg: var(--neutral-bg); --badge-line: var(--neutral-line);
