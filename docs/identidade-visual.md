@@ -154,6 +154,12 @@ Manrope para títulos e números grandes; DM Sans para todo o resto. Ambas vêm 
   `ApiError.details` (veja `AuthPage`).
 - Também existem `.alert-success`, `.alert-warning`, `.alert-info`, `.choice` (opção em cartão),
   `.switch` (liga/desliga), `.chip` (sugestão clicável) e `.tag` (rótulo não clicável).
+- Use `<FieldError id text />` para o erro de um campo e `formErrors(erro, CAMPOS)` (em
+  `src/utils/forms.ts`) para separar os erros por campo da mensagem geral.
+- Lista de textos curtos (categorias, lojas) usa `<TagInput>`: a pessoa digita e tecla Enter ou
+  toca numa sugestão; cada item escolhido vira um `.chip` com botão de remover.
+- Depois de um erro ao enviar, o foco vai para o primeiro campo com `aria-invalid`. Não desabilite
+  um controle que está com o foco enquanto salva (use `aria-disabled`): o foco se perderia.
 
 ### Cards e painéis
 
