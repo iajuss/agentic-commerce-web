@@ -169,6 +169,14 @@ Manrope para títulos e números grandes; DM Sans para todo o resto. Ambas vêm 
 - Carregando: `<span className="skeleton" />` no lugar do conteúdo, com `aria-busy="true"` no contêiner.
 - Vazio: `.empty-state` com ícone, frase curta do que vai aparecer e a ação para começar.
 
+### Modal
+
+Para confirmar algo que pede atenção total (aprovar compra com senha). Use `<dialog className="modal">`
+aberto com `showModal()`: o navegador prende o foco, fecha no Esc e escurece o fundo com `--overlay`.
+Estrutura: `.modal-header` (um `<h2>` e o botão Fechar com `aria-label`) → `.modal-body` → `.modal-actions`.
+No celular, o modal vira uma folha presa embaixo. Para o resumo antes do botão (valor, loja,
+validade), use `<dl className="summary-list">`.
+
 ### Selos de status
 
 Use sempre o componente; ele garante cor, ícone e texto iguais em todas as telas.

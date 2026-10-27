@@ -27,6 +27,11 @@ export function titleCase(text: string) {
   return text.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase())
 }
 
+// "na Loja Sonora", mas "na loja Mercado da Casa": evita "na Mercado da Casa" e "na loja Loja Sonora".
+export function atStore(store: string) {
+  return /^loja\s/i.test(store) ? `na ${store}` : `na loja ${store}`
+}
+
 function pad(value: number) {
   return String(value).padStart(2, '0')
 }

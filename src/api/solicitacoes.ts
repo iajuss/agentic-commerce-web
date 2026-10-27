@@ -1,6 +1,7 @@
 import { demoMode } from './auth'
 import { ApiError, apiRequest } from './client'
 import { demoId, notFound, nowIso, recordDemoEvent, wait } from './demo'
+import type { Authorization } from './autorizacoes'
 import { demoPoliciesSnapshot, type Policy } from './politicas'
 
 // Contrato em docs/contrato-api.md (POST, GET e DELETE /solicitacoes).
@@ -33,6 +34,8 @@ export type PurchaseRequest = {
   intencao: string
   status: RequestStatus
   ofertas: Offer[]
+  // A autorização que a aprovou (ou que o agente gerou sozinho); null antes da aprovação.
+  autorizacao: Authorization | null
   criada_em: string
   atualizada_em: string
 }
@@ -104,9 +107,9 @@ const ordinalOffer = (position: number) => `${position}ª`
 const days = (value: number) => `${value} ${value === 1 ? 'dia' : 'dias'}`
 
 // Mesmas regras de app/politicas/regras.py: basta uma política ativa aceitar.
-function evaluate(item: CatalogItem, policies: Policy[]) {
+function evaluate(item: Pick<CatalogItem, 'preco' | 'frete' | 'categoria' | 'loja'>, policies: Policy[]) {
   const active = policies.filter((policy) => policy.ativa)
-  if (!active.length) return { allowed: true, automatic: false, reasons: [] as string[] }
+  if (!active.length) return { allowed: true, automatic: false, reasons: [] as string[], policyName: null as string | null }
   const reasons: string[] = []
   const accepted: Policy[] = []
   for (const policy of active) {
@@ -118,8 +121,10 @@ function evaluate(item: CatalogItem, policies: Policy[]) {
     if (problems.length) reasons.push(...problems.map((problem) => `${policy.nome}: ${problem}`))
     else accepted.push(policy)
   }
-  if (!accepted.length) return { allowed: false, automatic: false, reasons }
-  return { allowed: true, automatic: accepted.some((policy) => policy.nivel_autonomia === 'automatica'), reasons: [] }
+  if (!accepted.length) return { allowed: false, automatic: false, reasons, policyName: null }
+  // Se mais de uma aceita, vale a que dá mais autonomia (como no backend).
+  const chosen = accepted.find((policy) => policy.nivel_autonomia === 'automatica') ?? accepted[0]
+  return { allowed: true, automatic: chosen.nivel_autonomia === 'automatica', reasons: [], policyName: chosen.nome }
 }
 
 function compare(offer: CatalogItem, other: CatalogItem, otherPosition: number) {
@@ -192,7 +197,7 @@ const demoRequests: DemoRequest[] = []
 function seed(intencao: string, status: RequestStatus, minutesAgo: number) {
   const createdAt = nowIso(-minutesAgo)
   const offers = status === 'sem_resultado' ? [] : rank(intencao)
-  demoRequests.push({ id: demoId(), intencao, status, ofertas: offers, criada_em: createdAt, atualizada_em: createdAt, readyAt: 0 })
+  demoRequests.push({ id: demoId(), intencao, status, ofertas: offers, autorizacao: null, criada_em: createdAt, atualizada_em: createdAt, readyAt: 0 })
   recordDemoEvent('solicitacao.criada', 'voce', `Você pediu: "${intencao}"`, { status }, createdAt)
   recordDemoEvent(offers.length ? 'ofertas.ranqueadas' : 'ofertas.sem_resultado', 'agente',
     offers.length ? `Ranqueei ${offers.length} ofertas` : 'Não encontrei ofertas', { quantidade: offers.length }, nowIso(-minutesAgo + 1))
@@ -225,9 +230,15 @@ function publicRequest({ readyAt: _ready, ...request }: DemoRequest): PurchaseRe
   return structuredClone(request)
 }
 
-export function demoMarkApproved(id: string) {
+// A aprovação confere de novo com as políticas de agora: elas podem ter mudado depois do ranking.
+export function demoEvaluate(offer: Offer) {
+  return evaluate(offer, demoPoliciesSnapshot())
+}
+
+export function demoMarkApproved(id: string, authorization: Authorization) {
   const request = findRequest(id)
   request.status = 'aprovada'
+  request.autorizacao = authorization
   request.atualizada_em = nowIso()
 }
 
@@ -243,7 +254,7 @@ const demo = {
     if (text.length < 3) throw new ApiError('Descreva o que você precisa.', 400, { intencao: 'Escreva pelo menos 3 letras.' })
     if (text.length > 500) throw new ApiError('Descreva o que você precisa.', 400, { intencao: 'Use no máximo 500 caracteres.' })
     const now = nowIso()
-    const request: DemoRequest = { id: demoId(), intencao: text, status: 'processando', ofertas: [], criada_em: now, atualizada_em: now, readyAt: Date.now() + 1800 }
+    const request: DemoRequest = { id: demoId(), intencao: text, status: 'processando', ofertas: [], autorizacao: null, criada_em: now, atualizada_em: now, readyAt: Date.now() + 1800 }
     demoRequests.push(request)
     recordDemoEvent('solicitacao.criada', 'voce', `Você pediu: "${text}"`, { solicitacao_id: request.id })
     return publicRequest(request)
