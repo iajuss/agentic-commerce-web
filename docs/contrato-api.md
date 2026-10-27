@@ -265,3 +265,81 @@ oferta, até `valor_maximo` (preço + frete), naquela loja, por pouco tempo e um
 traz `detalhes.senha`. É assim que ele diferencia "senha errada na aprovação" (a pessoa continua
 logada e tenta de novo) de "token vencido" (volta para o login). `motivos` do 422 é uma lista de
 textos, no formato de `avaliacao.motivos`.
+
+## Autorizações: `GET /autorizacoes` e `DELETE /autorizacoes/{id}`
+
+Responsável no backend: Pessoa 2. Tela: `/autorizacoes` (`src/pages/AuthorizationsPage.tsx`).
+
+### `GET /autorizacoes` → `200`
+
+Todas as autorizações da pessoa (não só as ativas), da mais recente para a mais antiga, no mesmo
+formato do `201` da aprovação. A tela separa "Ativas agora" de "Anteriores" e mostra o status com
+`StatusBadge`.
+
+```json
+[
+  { "id": "6ae0cb2205554cb018a1d2e0", "solicitacao_id": "6ae0c9f105554cb018a1d2d0", "oferta_id": "6ae0c9f105554cb018a1d2d1", "titulo": "Headset Vox Office 30", "valor_maximo": 349.9, "loja": "Loja Sonora", "politica_nome": "Eletrônicos do dia a dia", "expira_em": "2026-10-27T16:34:00+00:00", "status": "ativa", "automatica": false, "criada_em": "2026-10-27T16:04:00+00:00" },
+  { "id": "6ae0b11a05554cb018a1d2b1", "solicitacao_id": "6ae0b0f105554cb018a1d2b0", "oferta_id": "6ae0b0f105554cb018a1d2b2", "titulo": "Panos de microfibra, kit com 10", "valor_maximo": 39.9, "loja": "Loja Limpa", "politica_nome": "Casa", "expira_em": "2026-10-25T14:33:00+00:00", "status": "usada", "automatica": true, "criada_em": "2026-10-25T14:03:00+00:00" }
+]
+```
+
+- A API marca `expirada` quando `expira_em` passa (na leitura ou por rotina). Se ainda vier
+  `ativa` com `expira_em` no passado, a tela já mostra como expirada e não oferece revogar.
+
+### `DELETE /autorizacoes/{id}` → `204`
+
+Revoga uma autorização **ativa**: o status vira `revogada` e ela não pode mais pagar pedido.
+O registro continua existindo (aparece no `GET` e na auditoria).
+
+- `404` `{"erro": "Não encontrei esta autorização."}`.
+- `409` `{"erro": "Esta autorização não está mais ativa: ela já foi usada, revogada ou expirou."}`.
+
+## Auditoria: `GET /auditoria`
+
+Responsável no backend: Pessoa 2. Tela: `/auditoria` (`src/pages/AuditPage.tsx`).
+
+Trilha **só de inserção** da pessoa, da mais recente para a mais antiga:
+
+```json
+[
+  {
+    "id": "6ae0cc0105554cb018a1d2f0",
+    "tipo": "autorizacao.revogada",
+    "ator": "voce",
+    "descricao": "Você revogou a autorização de Headset Vox Office 30",
+    "criado_em": "2026-10-27T16:10:00+00:00",
+    "dados": { "autorizacao_id": "6ae0cb2205554cb018a1d2e0", "valor_maximo": 349.9 }
+  },
+  {
+    "id": "6ae0cb9905554cb018a1d2e9",
+    "tipo": "politica.bloqueou",
+    "ator": "politica",
+    "descricao": "Suas políticas bloquearam 1 oferta",
+    "criado_em": "2026-10-27T16:03:30+00:00",
+    "dados": { "solicitacao_id": "6ae0c9f105554cb018a1d2d0", "motivos": ["Eletrônicos do dia a dia: total de R$ 899,00 passa do teto de R$ 500,00"] }
+  }
+]
+```
+
+| Campo | Regra |
+|---|---|
+| `tipo` | Um dos abaixo. Tipo desconhecido aparece com o ícone genérico, sem quebrar a tela |
+| `ator` | `voce`, `agente`, `politica` (decisão do validador) ou `sistema` (expiração, pagamento). Se faltar, a tela deduz pelo `tipo` |
+| `descricao` | Frase curta no passado, em primeira pessoa quando é o agente ("Ranqueei 4 ofertas", "Comprei ... sozinho") e em "Você ..." quando é a pessoa |
+| `dados` | Objeto livre com os ids e valores do passo; a tela mostra em "Ver dados registrados". Nunca inclua senha, token ou dados de cartão |
+
+Tipos que a tela já conhece (ícone próprio):
+
+| `tipo` | `ator` | Quando |
+|---|---|---|
+| `solicitacao.criada` | voce | `POST /solicitacoes` |
+| `ofertas.ranqueadas` | agente | Fim do ranking com ofertas |
+| `ofertas.sem_resultado` | agente | Nada encontrado no catálogo |
+| `politica.bloqueou` | politica | Ofertas recusadas no ranking ou aprovação recusada (422) |
+| `solicitacao.cancelada` | voce | `DELETE /solicitacoes/{id}` |
+| `autorizacao.criada` | voce | Aprovação manual com senha |
+| `autorizacao.senha_incorreta` | sistema | 401 na aprovação |
+| `compra.automatica` | agente | Autorização gerada sem senha, dentro de política automática |
+| `autorizacao.revogada` | voce | `DELETE /autorizacoes/{id}` |
+| `autorizacao.expirada` | sistema | Passou de `expira_em` sem uso |
+| `autorizacao.usada` | sistema | Pedido pago com a autorização (`POST /pedidos`, Pessoa 5) |
