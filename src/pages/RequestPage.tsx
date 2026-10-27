@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { CircleAlert, CircleCheck, Info, Search, SearchX, ShieldCheck, TriangleAlert } from 'lucide-react'
+import { CircleAlert, CircleCheck, Info, Search, SearchX, ShieldCheck, ShieldX, TriangleAlert, Zap } from 'lucide-react'
 import { ApiError } from '../api/client'
-import { cancelRequest, canCancel, getRequest, POLL_INTERVAL_MS, sortOffers, type PurchaseRequest } from '../api/solicitacoes'
+import type { Authorization } from '../api/autorizacoes'
+import { cancelRequest, canCancel, getRequest, offerTotal, POLL_INTERVAL_MS, sortOffers, type Offer, type PurchaseRequest } from '../api/solicitacoes'
+import { ApprovalDialog } from '../components/ApprovalDialog'
 import { OfferCard } from '../components/OfferCard'
 import { StatusBadge } from '../components/StatusBadge'
 import { useResource } from '../hooks/useResource'
-import { formatDateTime } from '../utils/format'
+import { atStore, formatBRL, formatDateTime, formatTime } from '../utils/format'
 
 const TITLES: Record<PurchaseRequest['status'], string> = {
   processando: 'Buscando ofertas…',
@@ -58,10 +60,18 @@ function Summary({ request }: { request: PurchaseRequest }) {
   const total = request.ofertas.length
 
   if (request.status === 'aprovada') {
+    const authorization = request.autorizacao
     return (
       <div className="alert alert-success">
-        <CircleCheck aria-hidden="true" />
-        <p>Esta compra foi aprovada. Acompanhe a autorização em <Link to="/autorizacoes">Autorizações</Link>.</p>
+        {authorization?.automatica ? <Zap aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
+        <p>
+          {!authorization && 'Esta compra foi aprovada. '}
+          {authorization?.automatica &&
+            `Comprei ${authorization.titulo} por ${formatBRL(authorization.valor_maximo)} ${atStore(authorization.loja)} sozinho, porque cabia na sua política ${authorization.politica_nome ?? 'automática'}. Se não quiser, revogue até ${formatTime(authorization.expira_em)}. `}
+          {authorization && !authorization.automatica &&
+            `Você aprovou ${authorization.titulo}: até ${formatBRL(authorization.valor_maximo)} ${atStore(authorization.loja)}, válido até ${formatTime(authorization.expira_em)} e para um uso só. `}
+          Acompanhe em <Link to="/autorizacoes">Autorizações</Link>.
+        </p>
       </div>
     )
   }
@@ -96,6 +106,7 @@ export function RequestPage() {
   const [confirming, setConfirming] = useState(false)
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const [approving, setApproving] = useState<Offer | null>(null)
 
   // Enquanto a API busca e ranqueia, pergunta de novo até sair de "processando".
   useEffect(() => {
@@ -135,6 +146,32 @@ export function RequestPage() {
           </div>
         </section>
       </div>
+    )
+  }
+
+  function handleApproved(authorization: Authorization) {
+    setData((current) => current && { ...current, status: 'aprovada', autorizacao: authorization, atualizada_em: authorization.criada_em })
+  }
+
+  function closeApproval() {
+    const offerId = approving?.id
+    setApproving(null)
+    // Volta para o botão que abriu o modal; se a compra foi aprovada, ele sumiu e o foco vai para o título.
+    window.requestAnimationFrame(() => {
+      const button = offerId ? document.getElementById(`aprovar-${offerId}`) : null
+      ;(button ?? headingRef.current)?.focus()
+    })
+  }
+
+  function offerActions(offer: Offer, isTop: boolean) {
+    if (request?.status !== 'com_resultado') return undefined
+    if (!offer.dentro_da_politica) {
+      return <button className="btn btn-secondary" type="button" disabled><ShieldX aria-hidden="true" />Fora da política</button>
+    }
+    return (
+      <button id={`aprovar-${offer.id}`} className={isTop ? 'btn btn-primary' : 'btn btn-secondary'} type="button" onClick={() => setApproving(offer)}>
+        Aprovar compra de {formatBRL(offerTotal(offer))}
+      </button>
     )
   }
 
@@ -199,11 +236,13 @@ export function RequestPage() {
           <Summary request={request} />
           <ol className="offer-list" aria-label="Ofertas ranqueadas">
             {offers.map((offer) => (
-              <li key={offer.id}><OfferCard offer={offer} isTop={offer.id === topId} /></li>
+              <li key={offer.id}><OfferCard offer={offer} isTop={offer.id === topId} actions={offerActions(offer, offer.id === topId)} /></li>
             ))}
           </ol>
         </>
       )}
+
+      {approving && <ApprovalDialog requestId={request.id} offer={approving} onClose={closeApproval} onApproved={handleApproved} />}
     </div>
   )
 }
