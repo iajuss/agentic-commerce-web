@@ -9,14 +9,22 @@ pnpm install
 pnpm dev
 ```
 
-Durante o desenvolvimento, o app usa um modo de demonstração local quando `VITE_USE_MOCK_API` não é definido. Para integrar com o Flask, copie `.env.example` para `.env`, informe a URL da API e defina `VITE_USE_MOCK_API=false`.
+O app conversa com a API Flask (`agentic-commerce-api`), que precisa estar rodando em `http://localhost:5000`. Para outra URL, copie `.env.example` para `.env` e ajuste `VITE_API_URL`.
+
+Sem a API, dá para navegar no modo de demonstração com `VITE_USE_MOCK_API=true`: o login aceita qualquer e-mail e senha e nada é salvo. Esse modo nunca vale no build de produção.
 
 ## Variáveis de ambiente
 
 ```env
 VITE_API_URL=http://localhost:5000
-VITE_USE_MOCK_API=true
+VITE_USE_MOCK_API=false
 ```
+
+## Sessão
+
+- O login (`POST /sessoes`) devolve um JWT, guardado no `localStorage` e enviado em `Authorization: Bearer`.
+- O cadastro (`POST /usuarios`) faz o login logo em seguida.
+- Se a API responder 401 a uma requisição com token, ou se o token expirar, a sessão é encerrada e o usuário volta para `/entrar`.
 
 Nenhuma credencial deve ser commitada. O arquivo `.env` está ignorado pelo Git.
 

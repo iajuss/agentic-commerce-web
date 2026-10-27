@@ -1,5 +1,6 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { signIn, signUp, type User } from '../api/auth'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { demoMode, signIn, signUp, type AuthResponse, type User } from '../api/auth'
+import { SESSION_EXPIRED_EVENT, TOKEN_KEY } from '../api/client'
 
 type AuthContextValue = {
   user: User | null
@@ -10,13 +11,33 @@ type AuthContextValue = {
 }
 
 const STORAGE_KEY = 'agentic-commerce:user'
-const TOKEN_KEY = 'agentic-commerce:token'
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+function tokenExpired(token: string) {
+  if (demoMode) return false
+  try {
+    // O JWT é base64url; o campo exp está em segundos.
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now()
+  } catch {
+    return true
+  }
+}
+
+function clearSession() {
+  window.localStorage.removeItem(STORAGE_KEY)
+  window.localStorage.removeItem(TOKEN_KEY)
+}
 
 function readStoredUser(): User | null {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    return stored ? (JSON.parse(stored) as User) : null
+    const token = window.localStorage.getItem(TOKEN_KEY)
+    if (!stored || !token || tokenExpired(token)) {
+      clearSession()
+      return null
+    }
+    return JSON.parse(stored) as User
   } catch {
     return null
   }
@@ -25,29 +46,31 @@ function readStoredUser(): User | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(readStoredUser)
 
-  function saveSession(nextUser: User, token: string) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser))
+  useEffect(() => {
+    function handleExpired() {
+      clearSession()
+      setUser(null)
+    }
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleExpired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpired)
+  }, [])
+
+  function saveSession({ usuario, token }: AuthResponse) {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(usuario))
     window.localStorage.setItem(TOKEN_KEY, token)
-    setUser(nextUser)
+    setUser(usuario)
   }
 
   async function login(email: string, password: string) {
-    const response = await signIn(email, password)
-    const nextUser = response.usuario ?? response.user
-    if (!nextUser) throw new Error('A API não devolveu os dados do usuário.')
-    saveSession(nextUser, response.token)
+    saveSession(await signIn(email, password))
   }
 
   async function register(name: string, email: string, password: string) {
-    const response = await signUp(name, email, password)
-    const nextUser = response.usuario ?? response.user
-    if (!nextUser) throw new Error('A API não devolveu os dados do usuário.')
-    saveSession(nextUser, response.token)
+    saveSession(await signUp(name, email, password))
   }
 
   function logout() {
-    window.localStorage.removeItem(STORAGE_KEY)
-    window.localStorage.removeItem(TOKEN_KEY)
+    clearSession()
     setUser(null)
   }
 
