@@ -264,7 +264,7 @@ export function ProfilePage() {
         </section>
       )}
 
-      {Boolean(error) && !profile && (isNotConnected(error) ? <NotConnected what="Seu perfil, com preferências, orçamento e endereço," /> : (
+      {Boolean(error) && !profile && (isNotConnected(error) ? <NotConnected message="Seu perfil, com preferências, orçamento e endereço, vai aparecer aqui assim que a API tiver essa rota." /> : (
         <div className="alert alert-danger" role="alert">
           <CircleAlert aria-hidden="true" />
           <div className="stack">

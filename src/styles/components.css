@@ -243,7 +243,8 @@ textarea.input { min-height: 120px; resize: vertical; line-height: var(--leading
 .timeline-title { font-weight: 700; font-size: var(--text-body); line-height: 1.4; }
 .timeline-text { color: var(--muted); font-size: var(--text-small); line-height: var(--leading-small); max-width: 62ch; }
 .timeline-facts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
-.timeline-details { margin-top: var(--space-1); font-size: var(--text-small); }
+/* min-width: 0 deixa o JSON rolar dentro do <pre> em vez de alargar a página no celular */
+.timeline-details { min-width: 0; margin-top: var(--space-1); font-size: var(--text-small); }
 .timeline-details summary { color: var(--green); font-weight: 700; cursor: pointer; width: fit-content; border-radius: var(--radius-xs); }
 .timeline-details pre { margin: var(--space-2) 0 0; padding: var(--space-3); background: var(--surface-2); border-radius: var(--radius-sm); font-size: 12px; line-height: 1.5; overflow-x: auto; }
 
