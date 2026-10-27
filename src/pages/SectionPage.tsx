@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, KeyRound, Package, ScrollText, type LucideIcon } from 'lucide-react'
+import { ArrowRight, Package, type LucideIcon } from 'lucide-react'
 
-type Section = 'authorizations' | 'orders' | 'audit'
+// Só /pedidos ainda usa esta tela reservada (pedidos, comprovante e chamados são da Pessoa 5).
+type Section = 'orders'
 
 const content: Record<Section, { eyebrow: string; title: string; text: string; action: string; icon: LucideIcon }> = {
-  authorizations: { eyebrow: 'Aprovação e pagamento', title: 'Autorizações', text: 'Acompanhe e revogue permissões limitadas antes que sejam usadas.', action: 'Ver como funciona', icon: KeyRound },
   orders: { eyebrow: 'Pós-compra', title: 'Seus pedidos', text: 'Comprovantes, status, cancelamentos, devoluções e chamados.', action: 'Atualizar pedidos', icon: Package },
-  audit: { eyebrow: 'Transparência', title: 'Auditoria', text: 'Cada decisão do agente e cada ação sua, em ordem, com o motivo.', action: 'Filtrar eventos', icon: ScrollText },
 }
 
 export function SectionPage({ section }: { section: Section }) {
