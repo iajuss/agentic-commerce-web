@@ -38,6 +38,10 @@ Nenhuma credencial deve ser commitada. O arquivo `.env` está ignorado pelo Git.
 - `pnpm lint`: executa a análise estática e confere as regras da identidade visual
 - `pnpm preview`: abre localmente o build de produção
 
+## Contrato com a API
+
+As rotas que o front já usa, mas que a API ainda não tem, estão em [`docs/contrato-api.md`](docs/contrato-api.md), com corpo, resposta e erros. Enquanto uma rota não existir, a tela mostra "Esta parte ainda está sendo conectada"; no modo de demonstração ela funciona com dados simulados.
+
 ## Rotas já preparadas
 
 - `/entrar` e `/cadastro`: autenticação

@@ -8,6 +8,8 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => void
+  // Atualiza nome e e-mail exibidos depois de salvar o perfil, sem novo login.
+  updateUser: (changes: Partial<User>) => void
 }
 
 const STORAGE_KEY = 'agentic-commerce:user'
@@ -74,8 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }
 
+  function updateUser(changes: Partial<User>) {
+    setUser((current) => {
+      if (!current) return current
+      const next = { ...current, ...changes }
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
   const value = useMemo(
-    () => ({ user, isAuthenticated: Boolean(user), login, register, logout }),
+    () => ({ user, isAuthenticated: Boolean(user), login, register, logout, updateUser }),
     [user],
   )
 
