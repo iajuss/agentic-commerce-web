@@ -10,6 +10,8 @@ export class ApiError extends Error {
     public readonly status: number,
     // Erros por campo, no formato {"campo": "problema"} que a API devolve em "detalhes".
     public readonly details?: Record<string, string>,
+    // Corpo inteiro da resposta, para erros com dados a mais (ex.: os motivos de um 422).
+    public readonly body?: unknown,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -58,9 +60,12 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload = hasJson ? await response.json() : undefined
 
   if (!response.ok) {
-    if (response.status === 401 && token) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    // Um 401 com detalhes.senha é a senha errada na reautenticação (aprovar compra), não a
+    // sessão vencida: a pessoa continua logada e tenta de novo.
+    const wrongPassword = Boolean(payload?.detalhes?.senha)
+    if (response.status === 401 && token && !wrongPassword) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
     const message = payload?.erro || 'Não foi possível concluir a solicitação.'
-    throw new ApiError(message, response.status, payload?.detalhes)
+    throw new ApiError(message, response.status, payload?.detalhes, payload)
   }
 
   return payload as T

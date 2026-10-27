@@ -203,3 +203,65 @@ botão nesses casos). Depois disso, o status vira `cancelada` e nenhuma oferta d
 
 - `404` se não existe.
 - `409` com `{"erro": "Esta solicitação não pode mais ser cancelada: ela já foi aprovada, cancelada ou terminou sem ofertas."}`.
+
+## Aprovação: `POST /solicitacoes/{id}/autorizacoes`
+
+Responsável no backend: Pessoa 2. Tela: modal "Aprovar compra" em `/compras/{id}`
+(`src/components/ApprovalDialog.tsx`, tipos em `src/api/autorizacoes.ts`).
+
+Aprova uma oferta com reautenticação e gera a **autorização limitada**: vale só para aquela
+oferta, até `valor_maximo` (preço + frete), naquela loja, por pouco tempo e uma vez só.
+
+### Corpo
+
+```json
+{ "oferta_id": "6ae0c9f105554cb018a1d2d1", "senha": "a senha de login" }
+```
+
+- `senha` é a mesma do login, conferida de novo com o hash do usuário.
+- Se a oferta cabe numa política **automática** (`avaliar_oferta(...).compra_automatica`), a
+  senha não é necessária: o React manda só `oferta_id` e a API gera a autorização com
+  `automatica: true`. Se vier senha nesse caso, ela é ignorada.
+- A API **avalia de novo** a oferta com as políticas atuais: elas podem ter mudado depois do ranking.
+
+### `201` + `Location: /autorizacoes/{id}`
+
+```json
+{
+  "id": "6ae0cb2205554cb018a1d2e0",
+  "solicitacao_id": "6ae0c9f105554cb018a1d2d0",
+  "oferta_id": "6ae0c9f105554cb018a1d2d1",
+  "titulo": "Headset Vox Office 30",
+  "valor_maximo": 349.9,
+  "loja": "Loja Sonora",
+  "politica_nome": "Eletrônicos do dia a dia",
+  "expira_em": "2026-10-27T16:34:00+00:00",
+  "status": "ativa",
+  "automatica": false,
+  "criada_em": "2026-10-27T16:04:00+00:00"
+}
+```
+
+- `status`: `ativa` | `usada` (o pedido foi pago com ela) | `revogada` | `expirada`.
+- `expira_em`: 30 minutos depois de `criada_em` (a tela avisa "30 minutos, uso único" antes de aprovar).
+- `politica_nome`: a política que liberou a compra (`avaliacao.politica_id`), ou `null` quando não
+  há nenhuma política ativa. A tela usa na frase "porque cabia na sua política Casa".
+- `titulo` e `loja` são copiados da oferta para a lista de autorizações não precisar buscar a solicitação.
+- Depois do `201`, a solicitação passa para `status: "aprovada"` e ganha o campo
+  `autorizacao` com este mesmo objeto (`GET /solicitacoes/{id}`). Se o orquestrador gerar a
+  autorização automática sozinho logo depois do ranking, basta devolver a solicitação já como
+  `aprovada` com `autorizacao.automatica: true`: a tela mostra "Comprei ... sozinho".
+
+### Erros
+
+| Situação | Status | Corpo |
+|---|---|---|
+| Senha errada ou ausente (oferta não automática) | 401 | `{"erro": "A senha não confere.", "detalhes": {"senha": "Senha incorreta. Confira e tente de novo."}}` |
+| A oferta não cabe nas políticas atuais | 422 | `{"erro": "Esta oferta não cabe nas suas políticas.", "detalhes": {"motivos": ["Casa: total de R$ 349,90 passa do teto de R$ 80,00"]}}` |
+| Solicitação já aprovada, cancelada ou sem resultado | 409 | `{"erro": "Esta solicitação não aceita mais aprovação: ela já foi aprovada ou cancelada."}` |
+| Solicitação ou oferta não existe | 404 | `{"erro": "Não encontrei esta oferta."}` |
+
+**Importante para o 401:** o front encerra a sessão em qualquer 401, **exceto** quando a resposta
+traz `detalhes.senha`. É assim que ele diferencia "senha errada na aprovação" (a pessoa continua
+logada e tenta de novo) de "token vencido" (volta para o login). `motivos` do 422 é uma lista de
+textos, no formato de `avaliacao.motivos`.
