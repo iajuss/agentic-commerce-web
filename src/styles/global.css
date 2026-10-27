@@ -88,7 +88,36 @@
 .policy-limit strong { color: var(--ink); font-size: var(--text-h2); }
 .autonomy-row { display: grid; justify-items: start; gap: var(--space-2); padding-top: var(--space-4); border-top: 1px solid var(--line); }
 
-/* ---- Telas ainda reservadas ------------------------------------------------- */
+.dashboard-policy-empty { display: grid; justify-items: start; gap: var(--space-3); }
+
+/* ---- Esqueletos de carregamento --------------------------------------------- */
+.skeleton-title { height: 22px; width: 60%; }
+.skeleton-short { width: 40%; }
+
+/* ---- Campo de lista (categorias, lojas) --------------------------------------- */
+.tag-input-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tag-input-list .chip { border-color: var(--green); background: var(--green-soft); }
+.tag-input-list .chip .lucide, .tag-input-suggestions .chip .lucide { width: 16px; height: 16px; }
+.tag-input-suggestions { gap: var(--space-2); }
+
+/* ---- Políticas -------------------------------------------------------------- */
+.policy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--space-6); align-items: start; }
+.policy-grid > .panel { grid-column: 1 / -1; }
+.policy-card { display: grid; gap: var(--space-4); }
+.policy-card-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.policy-card-head h3 { overflow-wrap: anywhere; }
+.policy-rules { margin: 0; display: grid; gap: var(--space-3); }
+.policy-rules > div { display: grid; gap: var(--space-1); }
+.policy-rules dt { font-size: var(--text-caption); font-weight: 700; color: var(--muted); }
+.policy-rules dd { margin: 0; }
+.policy-card-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.policy-confirm { display: grid; gap: var(--space-3); padding: var(--space-4); border: 1px solid var(--danger-line); border-radius: var(--radius-md); background: var(--danger-bg); font-size: var(--text-small); }
+.policy-form-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-5); }
+.policy-fieldset { margin: 0; padding: 0; border: 0; }
+.policy-fieldset legend { padding: 0; margin-bottom: var(--space-2); }
+.policy-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+
+/* ---- Estado vazio e telas ainda reservadas ------------------------------------ */
 .empty-state { min-height: 220px; display: grid; justify-items: center; align-content: center; gap: var(--space-2); text-align: center; color: var(--muted); }
 .empty-state strong { color: var(--ink); }
 .empty-state p { max-width: 430px; font-size: var(--text-small); }
@@ -173,4 +202,6 @@
   .journey-list { grid-template-columns: 1fr; }
   .section-actions { flex-direction: column-reverse; }
   .section-actions .btn { width: 100%; }
+  .policy-form-grid, .policy-choices { grid-template-columns: 1fr; }
+  .page-header > .btn { width: 100%; }
 }

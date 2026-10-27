@@ -1,8 +1,12 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, Search, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Plus, Search, ShieldCheck } from 'lucide-react'
+import { listPolicies, mainPolicy, type Policy } from '../api/politicas'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../contexts/AuthContext'
+import { useResource } from '../hooks/useResource'
+import { categoryLabel } from '../utils/categories'
+import { formatBRL } from '../utils/format'
 
 const journey = [
   { number: '01', title: 'Diga o que precisa', text: 'Descreva a compra do seu jeito, com contexto e limites.' },
@@ -12,8 +16,58 @@ const journey = [
 
 const examples = ['Fone confortável para reuniões, até R$ 450', 'Cadeira de escritório até R$ 900']
 
+type MainPolicyProps = { policy?: Policy; loading: boolean; error: unknown; hasPolicies: boolean }
+
+function MainPolicy({ policy, loading, error, hasPolicies }: MainPolicyProps) {
+  if (loading) {
+    return (
+      <div className="panel-body stack" aria-busy="true" aria-label="Carregando a política principal">
+        <span className="skeleton skeleton-title" />
+        <span className="skeleton" />
+        <span className="skeleton skeleton-short" />
+      </div>
+    )
+  }
+  if (error) {
+    return <div className="panel-body"><p className="text-small text-muted">Não consegui carregar suas políticas agora. Abra a tela de políticas para tentar de novo.</p></div>
+  }
+  if (!policy) {
+    return (
+      <div className="panel-body dashboard-policy-empty">
+        <p className="text-small text-muted">
+          {hasPolicies
+            ? 'Nenhuma política está ativa. O agente pode sugerir qualquer oferta, mas toda compra vai precisar da sua aprovação.'
+            : 'Você ainda não definiu limites. Crie uma política para dizer quanto o agente pode gastar e onde.'}
+        </p>
+        <Link className="btn btn-secondary btn-sm" to="/politicas"><Plus aria-hidden="true" />{hasPolicies ? 'Ativar uma política' : 'Criar política'}</Link>
+      </div>
+    )
+  }
+  return (
+    <div className="panel-body stack">
+      <p className="text-small"><strong>{policy.nome}</strong></p>
+      <div className="policy-limit"><span>Teto por compra</span><strong className="price">{formatBRL(policy.teto_por_compra)}</strong></div>
+      <div className="row">
+        {policy.categorias.length
+          ? policy.categorias.map((category) => <span className="tag" key={category}>{categoryLabel(category)}</span>)
+          : <span className="tag">Qualquer categoria</span>}
+      </div>
+      <div className="autonomy-row">
+        <StatusBadge kind="autonomia" status={policy.nivel_autonomia} />
+        <p className="text-small text-muted">
+          {policy.nivel_autonomia === 'automatica'
+            ? 'O agente compra sozinho quando a oferta cabe nesta política.'
+            : 'Você confirma cada compra antes do pagamento.'}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function DashboardPage() {
   const { user } = useAuth()
+  const { data: policies, loading, error } = useResource(listPolicies)
+  const policy = policies && mainPolicy(policies)
   const navigate = useNavigate()
   const [description, setDescription] = useState('')
 
@@ -70,16 +124,9 @@ export function DashboardPage() {
         <section className="panel" aria-labelledby="seus-limites">
           <div className="panel-header">
             <h2 id="seus-limites">Política principal</h2>
-            <Link className="btn btn-ghost btn-sm" to="/politicas">Editar</Link>
+            <Link className="btn btn-ghost btn-sm" to="/politicas">{policy ? 'Editar' : 'Ver políticas'}</Link>
           </div>
-          <div className="panel-body stack">
-            <div className="policy-limit"><span>Teto por compra</span><strong className="price">R$ 500</strong></div>
-            <div className="row"><span className="tag">Eletrônicos</span><span className="tag">Casa</span><span className="tag">Livros</span></div>
-            <div className="autonomy-row">
-              <StatusBadge kind="autonomia" status="manual" />
-              <p className="text-small text-muted">Você confirma cada compra antes do pagamento.</p>
-            </div>
-          </div>
+          <MainPolicy policy={policy} loading={loading} error={error} hasPolicies={Boolean(policies?.length)} />
         </section>
       </div>
     </div>

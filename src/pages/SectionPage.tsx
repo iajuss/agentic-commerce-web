@@ -1,11 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
-import { ArrowRight, KeyRound, Package, ScrollText, Search, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react'
+import { ArrowRight, KeyRound, Package, ScrollText, Search, UserRound, type LucideIcon } from 'lucide-react'
 
-type Section = 'request' | 'policies' | 'profile' | 'authorizations' | 'orders' | 'audit'
+type Section = 'request' | 'profile' | 'authorizations' | 'orders' | 'audit'
 
 const content: Record<Section, { eyebrow: string; title: string; text: string; action: string; icon: LucideIcon }> = {
   request: { eyebrow: 'Nova compra', title: 'Descreva o que você precisa', text: 'Escreva como falaria com alguém de confiança: para que serve, quanto quer gastar e o que não pode faltar.', action: 'Buscar ofertas', icon: Search },
-  policies: { eyebrow: 'Perfil e governança', title: 'Políticas de compra', text: 'Defina teto, categorias, lojas e o nível de autonomia do seu agente.', action: 'Nova política', icon: ShieldCheck },
   profile: { eyebrow: 'Preferências', title: 'Seu perfil', text: 'Orçamento, preferências e endereço de entrega ficam centralizados aqui.', action: 'Completar perfil', icon: UserRound },
   authorizations: { eyebrow: 'Aprovação e pagamento', title: 'Autorizações', text: 'Acompanhe e revogue permissões limitadas antes que sejam usadas.', action: 'Ver como funciona', icon: KeyRound },
   orders: { eyebrow: 'Pós-compra', title: 'Seus pedidos', text: 'Comprovantes, status, cancelamentos, devoluções e chamados.', action: 'Atualizar pedidos', icon: Package },
