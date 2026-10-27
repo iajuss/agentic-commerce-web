@@ -2,33 +2,14 @@ import { useState, type FormEvent } from 'react'
 import { NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, CircleAlert, Info } from 'lucide-react'
 import { Brand } from '../components/Brand'
+import { FieldError } from '../components/FieldError'
 import { demoMode } from '../api/auth'
-import { ApiError } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { formErrors, type FormErrors } from '../utils/forms'
 
 type Field = 'nome' | 'email' | 'senha'
-type FormErrors = { message: string; fields: Partial<Record<Field, string>> }
 
 const FIELDS: Field[] = ['nome', 'email', 'senha']
-
-// Os erros por campo da API ("detalhes") vão para baixo de cada campo; o resto vai para a mensagem geral.
-function formErrors(caught: unknown): FormErrors {
-  if (!(caught instanceof ApiError)) {
-    return { message: caught instanceof Error ? caught.message : 'Não foi possível continuar.', fields: {} }
-  }
-  const fields: FormErrors['fields'] = {}
-  const others: string[] = []
-  for (const [field, problem] of Object.entries(caught.details ?? {})) {
-    if (FIELDS.includes(field as Field)) fields[field as Field] = problem
-    else others.push(problem)
-  }
-  return { message: [caught.message, ...others].join(' '), fields }
-}
-
-function FieldError({ id, text }: { id: string; text?: string }) {
-  if (!text) return null
-  return <p className="field-error" id={id}><CircleAlert aria-hidden="true" />{text}</p>
-}
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { isAuthenticated, login, register } = useAuth()
@@ -38,7 +19,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState<FormErrors | null>(null)
+  const [errors, setErrors] = useState<FormErrors<Field> | null>(null)
 
   if (isAuthenticated) return <Navigate to="/inicio" replace />
 
@@ -52,7 +33,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       const destination = (location.state as { from?: string } | null)?.from || '/inicio'
       navigate(destination, { replace: true })
     } catch (caught) {
-      setErrors(formErrors(caught))
+      setErrors(formErrors(caught, FIELDS))
     } finally {
       setLoading(false)
     }
