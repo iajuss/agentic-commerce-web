@@ -3,8 +3,10 @@ import { AppLayout } from './components/AppLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthPage } from './pages/AuthPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { NewRequestPage } from './pages/NewRequestPage'
 import { PoliciesPage } from './pages/PoliciesPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { RequestPage } from './pages/RequestPage'
 import { SectionPage } from './pages/SectionPage'
 
 export function App() {
@@ -15,7 +17,8 @@ export function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/inicio" element={<DashboardPage />} />
-          <Route path="/compras/nova" element={<SectionPage section="request" />} />
+          <Route path="/compras/nova" element={<NewRequestPage />} />
+          <Route path="/compras/:id" element={<RequestPage />} />
           <Route path="/politicas" element={<PoliciesPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/autorizacoes" element={<SectionPage section="authorizations" />} />
