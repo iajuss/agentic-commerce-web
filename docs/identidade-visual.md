@@ -177,6 +177,7 @@ Use sempre o componente; ele garante cor, ícone e texto iguais em todas as tela
 <StatusBadge kind="politica" status="ativa" />        // ativa | inativa
 <StatusBadge kind="autonomia" status="manual" />      // manual | automatica
 <StatusBadge kind="oferta" status="dentro" />         // dentro | fora | recomendada
+<StatusBadge kind="solicitacao" status="com_resultado" /> // processando | com_resultado | sem_resultado | aprovada | cancelada
 <StatusBadge kind="autorizacao" status="usada" />     // ativa | usada | revogada | expirada
 <StatusBadge kind="pedido" status="enviado" />        // pago | enviado | entregue | cancelado | devolvido
 ```
@@ -208,6 +209,8 @@ Estrutura: `.offer` (com `data-top="true"` na 1ª e `data-fora="true"` nas fora 
 `.offer-rank` (posição) e `.offer-main` → `.offer-head` (nome, loja, preço) → `.offer-badges` →
 `.offer-why` (motivo em uma frase com números + `.criteria` com uma barra por critério) →
 `.offer-actions`. A oferta fora da política aparece no fim, com o motivo e o botão desabilitado.
+Em React, use `<OfferCard offer isTop actions />` (`src/components/OfferCard.tsx`), que já monta
+essa estrutura a partir da oferta da API.
 Veja a tela "Ofertas ranqueadas" no guia visual.
 
 ## Ícones
