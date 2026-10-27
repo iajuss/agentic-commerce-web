@@ -16,6 +16,20 @@ export class ApiError extends Error {
   }
 }
 
+// A rota ainda não existe na API (outra pessoa do grupo está fazendo): o Flask responde 404 ou 405.
+// Só use em rotas de lista ou de "me"; num recurso com id, 404 também quer dizer "não encontrado".
+export function isNotConnected(caught: unknown) {
+  return caught instanceof ApiError && (caught.status === 404 || caught.status === 405)
+}
+
+async function apiIsUp() {
+  try {
+    return (await fetch(`${API_URL}/health`)).ok
+  } catch {
+    return false
+  }
+}
+
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -34,6 +48,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     })
   } catch {
+    // Uma rota que ainda não existe responde 404 também ao preflight do CORS, e o navegador só
+    // mostra "falha de rede". Se a API responde no /health, a falha foi a rota, não a conexão.
+    if (await apiIsUp()) throw new ApiError('Esta parte ainda está sendo conectada.', 404)
     throw new ApiError('Não foi possível conectar ao servidor. Tente novamente em instantes.', 0)
   }
 
