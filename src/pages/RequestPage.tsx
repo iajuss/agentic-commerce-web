@@ -149,11 +149,14 @@ function ItemSection({ item, index }: { item: RequestItem; index: number }) {
   const headingId = `item-${index}`
   const notes = [...item.explicacao]
   if (item.descartadas) notes.push(`${plural(item.descartadas, 'oferta descartada', 'ofertas descartadas')} pelas políticas`)
+  // A quantidade é de embalagens da oferta, não a que a pessoa escreveu ("2 kg de feijão" vira 2 pacotes de 1 kg).
+  // Quando a API ajustou, a explicação já conta; senão, a tela diz quantas embalagens entram na cesta.
+  if (item.recomendada && !notes.some((note) => /embalage/i.test(note))) notes.unshift(`${plural(item.quantidade, 'embalagem', 'embalagens')} na cesta`)
 
   return (
     <li className="basket-item" aria-labelledby={headingId}>
       <div className="basket-item-head">
-        <h3 id={headingId}><span className="num">{item.quantidade}×</span> {item.descricao}</h3>
+        <h3 id={headingId}>{item.descricao}</h3>
         {notes.length > 0 && <span className="text-caption">{notes.join(' · ')}</span>}
       </div>
       {item.recomendada ? (

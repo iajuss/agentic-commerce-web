@@ -4,7 +4,7 @@ A fonte da verdade é o **contrato de integração do backend**:
 [`docs/plano-backend/00-contrato-de-integracao.md`](https://github.com/iajuss/agentic-commerce-api/blob/main/docs/plano-backend/00-contrato-de-integracao.md)
 no repositório `agentic-commerce-api`. Este arquivo resume o que cada tela usa e os detalhes que
 mudam o comportamento do React. Os tipos TypeScript de cada rota ficam em `src/api/` e seguem os
-formatos abaixo, conferidos contra a API rodando em 30/10/2026.
+formatos abaixo, conferidos contra a API rodando em 30/10/2026 (main da API com o PR #15).
 
 Se o backend mudar uma rota, campo ou status, ajuste aqui e em `src/api/` no mesmo PR.
 
@@ -37,7 +37,8 @@ Se o backend mudar uma rota, campo ou status, ajuste aqui e em `src/api/` no mes
 ## Solicitação: a lista de compras vira uma cesta
 
 `POST /solicitacoes` com `{"texto": "arroz 5kg, 2 leites integrais e detergente"}` (3 a 500 caracteres)
-responde `201` já com a cesta pronta (não há processamento em segundo plano):
+responde `201` já com a cesta pronta (não há processamento em segundo plano). A API também aceita
+`{"itens": [{"descricao": "arroz 5kg", "quantidade": 1}]}` (1 a 20 itens), mas o front só usa `texto`:
 
 ```json
 {
@@ -47,7 +48,7 @@ responde `201` já com a cesta pronta (não há processamento em segundo plano):
       "descricao": "arroz 5kg", "quantidade": 1, "status": "com_oferta",
       "recomendada": {
         "id_externo": "FIXO-001", "fonte": "fixo", "titulo": "Arroz Branco Tipo 1 5kg", "marca": "Grão Dourado",
-        "preco": 27.9, "frete": 0.0, "frete_gratis": true, "prazo_dias": 2, "avaliacao": 4.7,
+        "preco": 27.9, "frete": 0.0, "frete_gratis": true, "prazo_dias": 2, "avaliacao": 4.7, "estoque": null,
         "categoria": "Arroz", "categorias_caminho": ["Alimentos e Bebidas", "Mercearia", "Arroz"],
         "loja": "Mercado Exemplo", "preco_por_unidade": 5.58, "unidade": "kg", "imagem": null, "link": null,
         "explicacao": ["Preço por kg: R$ 5,58/kg", "Frete grátis", "Entrega estimada em 2 dias"]
@@ -66,6 +67,10 @@ responde `201` já com a cesta pronta (não há processamento em segundo plano):
 
 - `status`: `aguardando_aprovacao` · `sem_resultado` (nenhum item com oferta) · `aprovada` · `concluida`
   (Pix pago) · `expirada` (Pix venceu ou pedido cancelado antes de pagar).
+- `itens[].quantidade` é o número de **embalagens** da `recomendada`, não o que a pessoa escreveu: "2 kg de feijão"
+  com o pacote de 1 kg vira `quantidade: 2`, e "dez ovos" com a caixa de 12 vira `quantidade: 1`. A `explicacao` do item
+  conta o ajuste ("Você pediu 2 kg: 2 embalagens de 1 kg"), então a tela mostra a `descricao` sem multiplicar.
+- `fonte` no MVP é `fixo` ou `dummyjson`; `estoque` pode vir `null`.
 - Item `sem_oferta` tem `recomendada: null` e fica fora da cesta. `frete: null` quer dizer que a loja não informou.
 - `avaliacao` vale para a **cesta inteira**: só dá para aprovar quando `permitida` é `true`. Os
   motivos de recusa vêm em `motivos`, já prefixados com o nome da política.

@@ -10,6 +10,7 @@ export type RequestStatus = 'aguardando_aprovacao' | 'sem_resultado' | 'aprovada
 // Oferta do catálogo já ranqueada. Campos que a fonte não informa chegam como null.
 export type Offer = {
   id_externo: string
+  // No MVP: "fixo" (catálogo local) ou "dummyjson" (catálogo externo).
   fonte: string
   titulo: string
   marca?: string | null
@@ -22,6 +23,8 @@ export type Offer = {
   categorias_caminho: string[]
   loja: string
   avaliacao: number | null
+  // Quantidade disponível (aproximada quando a fonte só informa faixas).
+  estoque?: number | null
   preco_por_unidade?: number | null
   unidade?: string | null
   link?: string | null
@@ -32,6 +35,7 @@ export type Offer = {
 
 export type RequestItem = {
   descricao: string
+  // Embalagens da recomendada a comprar, a mesma que entra no subtotal ("2 kg de feijão" com o pacote de 1 kg vira 2).
   quantidade: number
   status: 'com_oferta' | 'sem_oferta'
   recomendada: Offer | null
