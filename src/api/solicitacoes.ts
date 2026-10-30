@@ -244,7 +244,7 @@ function build(texto: string): Omit<PurchaseRequest, 'id' | 'criada_em' | 'atual
 
 const demoRequests: PurchaseRequest[] = []
 
-// Gancho da compra automática no modo demo, registrado por autorizacoes.ts (como o M3 faz no backend).
+// Gancho da compra automática no modo demo, registrado por pedidos.ts (como o M3 faz no backend).
 export const demoHooks: { autoPurchase?: (request: PurchaseRequest) => AutoPurchase | null } = {}
 
 export function demoFindRequest(id: string) {

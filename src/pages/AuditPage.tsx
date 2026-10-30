@@ -78,7 +78,7 @@ function resourceLink(event: AuditEvent) {
   const resource = event.recurso
   if (!resource) return null
   if (resource.tipo === 'solicitacao' && event.tipo !== 'solicitacao_cancelada') return { to: `/compras/${resource.id}`, label: 'Ver lista' }
-  if (resource.tipo === 'pedido') return { to: '/pedidos', label: 'Ver pedidos' }
+  if (resource.tipo === 'pedido') return { to: `/pedidos/${resource.id}`, label: 'Ver pedido' }
   if (resource.tipo === 'politica' && event.tipo !== 'politica_removida') return { to: '/politicas', label: 'Ver políticas' }
   return null
 }

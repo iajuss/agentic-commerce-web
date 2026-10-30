@@ -55,5 +55,6 @@ O formato de cada rota que o front usa está resumido em [`docs/contrato-api.md`
 - `/politicas`: regras e autonomia
 - `/perfil`: preferências, orçamento e entrega
 - `/autorizacoes`: autorizações limitadas
-- `/pedidos`: pedidos e pós-compra
+- `/pedidos`: lista de pedidos
+- `/pedidos/{id}`: Pix simulado, comprovante, acompanhamento, cancelamento, devolução e chamados
 - `/auditoria`: histórico de decisões
