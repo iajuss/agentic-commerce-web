@@ -1,22 +1,22 @@
-// Categorias do catálogo (DummyJSON) como a API compara, com o nome que a pessoa lê.
-// Uma categoria fora da lista aparece do jeito que foi digitada.
+// Categorias do catálogo de supermercado. A política aceita qualquer nível do caminho da oferta
+// ("mercearia" aceita Arroz e Café; "bebidas" aceita Cervejas), e a API compara sem maiúsculas
+// nem acentos. Uma categoria fora da lista aparece do jeito que foi digitada.
 const LABELS: Record<string, string> = {
-  smartphones: 'Celulares',
-  'mobile-accessories': 'Acessórios de celular',
-  laptops: 'Notebooks',
-  tablets: 'Tablets',
-  'home-decoration': 'Decoração',
-  'kitchen-accessories': 'Cozinha',
-  furniture: 'Móveis',
-  groceries: 'Mercado',
-  beauty: 'Beleza',
-  'skin-care': 'Cuidados com a pele',
-  fragrances: 'Perfumes',
-  'sports-accessories': 'Esportes',
+  'alimentos e bebidas': 'Alimentos e Bebidas',
+  mercearia: 'Mercearia',
+  'laticínios': 'Laticínios',
+  padaria: 'Padaria',
+  ovos: 'Ovos',
+  bebidas: 'Bebidas',
+  'bebidas alcoólicas': 'Bebidas Alcoólicas',
+  'casa e limpeza': 'Casa e Limpeza',
+  limpeza: 'Limpeza',
+  lavanderia: 'Lavanderia',
+  'higiene e cuidado pessoal': 'Higiene e Cuidado Pessoal',
 }
 
 export const SUGGESTED_CATEGORIES = Object.keys(LABELS)
 
-export function categoryLabel(slug: string) {
-  return LABELS[slug] ?? slug
+export function categoryLabel(category: string) {
+  return LABELS[category.trim().toLowerCase()] ?? category
 }

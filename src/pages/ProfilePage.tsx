@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CircleAlert, CircleCheck, MapPin } from 'lucide-react'
 import { isNotConnected } from '../api/client'
-import { getProfile, maskCep, onlyDigits, PROFILE_FIELDS, updateProfile, type Profile, type RankingPriority } from '../api/perfil'
+import { getProfile, maskCep, onlyDigits, PROFILE_FIELDS, updateProfile, type Profile } from '../api/perfil'
 import { FieldError } from '../components/FieldError'
 import { NotConnected } from '../components/NotConnected'
 import { TagInput } from '../components/TagInput'
@@ -12,22 +12,17 @@ import { formErrors, type FormErrors } from '../utils/forms'
 
 type Field = (typeof PROFILE_FIELDS)[number]
 
-const PRIORITIES: { value: RankingPriority; title: string; text: string }[] = [
-  { value: 'preco', title: 'Menor preço', text: 'O total com frete pesa mais no ranking.' },
-  { value: 'prazo', title: 'Entrega mais rápida', text: 'O prazo de entrega pesa mais no ranking.' },
-  { value: 'avaliacao', title: 'Melhor avaliação', text: 'A nota de quem já comprou pesa mais no ranking.' },
-]
-
 function errorMessage(caught: unknown) {
   return caught instanceof Error ? caught.message : 'Não foi possível concluir. Tente de novo.'
 }
 
 function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile: Profile) => void }) {
   const [name, setName] = useState(profile.nome)
-  const [priority, setPriority] = useState(profile.preferencias.prioridade)
-  const [stores, setStores] = useState(profile.preferencias.lojas_preferidas)
+  const [birth, setBirth] = useState(profile.data_nascimento ?? '')
+  const [preferred, setPreferred] = useState(profile.preferencias.marcas_preferidas)
+  const [avoided, setAvoided] = useState(profile.preferencias.marcas_evitadas)
   const [budget, setBudget] = useState(profile.orcamento_mensal === null ? '' : toBRLInput(profile.orcamento_mensal))
-  const [cep, setCep] = useState(profile.endereco?.cep ?? '')
+  const [cep, setCep] = useState(maskCep(profile.endereco?.cep ?? ''))
   const [number, setNumber] = useState(profile.endereco?.numero ?? '')
   const [complement, setComplement] = useState(profile.endereco?.complemento ?? '')
   const [saving, setSaving] = useState(false)
@@ -35,6 +30,8 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
   const [errors, setErrors] = useState<FormErrors<Field> | null>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const fieldError = errors?.fields ?? {}
+  // O CEP não encontrado pelo ViaCEP volta em "cep"; o formato inválido, em "endereco.cep".
+  const cepError = fieldError['endereco.cep'] ?? fieldError.cep
 
   useEffect(() => {
     if (!errors) return
@@ -50,14 +47,16 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
     setSaving(true)
     const hasAddress = Boolean(onlyDigits(cep) || number.trim() || complement.trim())
     try {
+      // O PATCH só muda o que vai no corpo: data e endereço vazios ficam como estão.
       const updated = await updateProfile({
         nome: name,
-        preferencias: { prioridade: priority, lojas_preferidas: stores },
+        preferencias: { marcas_preferidas: preferred, marcas_evitadas: avoided },
         orcamento_mensal: budget.trim() ? parseBRL(budget) : null,
-        endereco: hasAddress ? { cep, numero: number, complemento: complement } : null,
+        ...(birth ? { data_nascimento: birth } : {}),
+        ...(hasAddress ? { endereco: { cep: onlyDigits(cep), numero: number, complemento: complement } } : {}),
       })
       onSaved(updated)
-      setCep(updated.endereco?.cep ?? '')
+      setCep(maskCep(updated.endereco?.cep ?? ''))
       setSaved(true)
     } catch (caught) {
       setErrors(formErrors(caught, PROFILE_FIELDS))
@@ -97,6 +96,23 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
             <FieldError id="perfil-nome-erro" text={fieldError.nome} />
           </div>
           <div className="field">
+            <label className="field-label" htmlFor="perfil-nascimento">Data de nascimento <span className="optional">(opcional)</span></label>
+            <input
+              className="input num"
+              id="perfil-nascimento"
+              type="date"
+              value={birth}
+              onChange={(event) => setBirth(event.target.value)}
+              autoComplete="bday"
+              max={new Date().toISOString().slice(0, 10)}
+              aria-invalid={Boolean(fieldError.data_nascimento)}
+              aria-describedby={fieldError.data_nascimento ? 'perfil-nascimento-erro' : 'perfil-nascimento-dica'}
+            />
+            {fieldError.data_nascimento
+              ? <FieldError id="perfil-nascimento-erro" text={fieldError.data_nascimento} />
+              : <span className="field-hint" id="perfil-nascimento-dica">Só ofereço bebidas alcoólicas para quem informou ter 18 anos ou mais.</span>}
+          </div>
+          <div className="field">
             <span className="field-label">E-mail</span>
             <p className="profile-static">{profile.email}</p>
             <span className="field-hint">É o e-mail que você usa para entrar.</span>
@@ -106,31 +122,26 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
 
       <section className="panel" aria-labelledby="perfil-preferencias">
         <div className="panel-header"><h2 id="perfil-preferencias">Preferências</h2></div>
-        <div className="panel-body stack-lg">
-          <fieldset className="field policy-fieldset" aria-describedby={fieldError['preferencias.prioridade'] ? 'perfil-prioridade-erro' : 'perfil-prioridade-dica'}>
-            <legend className="field-label">O que mais importa quando o agente compara ofertas</legend>
-            <div className="profile-choices">
-              {PRIORITIES.map((option) => (
-                <label className="choice" key={option.value}>
-                  <input type="radio" name="perfil-prioridade" value={option.value} checked={priority === option.value} onChange={() => setPriority(option.value)} />
-                  <strong>{option.title}</strong>
-                  <p>{option.text}</p>
-                </label>
-              ))}
-            </div>
-            {fieldError['preferencias.prioridade']
-              ? <FieldError id="perfil-prioridade-erro" text={fieldError['preferencias.prioridade']} />
-              : <span className="field-hint" id="perfil-prioridade-dica">As políticas continuam valendo: isto só muda a ordem das ofertas.</span>}
-          </fieldset>
+        <div className="panel-body profile-grid">
           <TagInput
-            id="perfil-lojas"
-            label="Lojas preferidas"
-            values={stores}
-            onChange={setStores}
+            id="perfil-marcas-preferidas"
+            label="Marcas preferidas"
+            values={preferred}
+            onChange={setPreferred}
             format={titleCase}
-            placeholder="Ex.: Loja Sonora"
-            hint="Em caso de empate, o agente coloca estas lojas na frente."
-            error={fieldError['preferencias.lojas_preferidas']}
+            placeholder="Ex.: Vale Verde"
+            hint="Quando o preço é parecido, estas marcas sobem no ranking."
+            error={fieldError['preferencias.marcas_preferidas']}
+          />
+          <TagInput
+            id="perfil-marcas-evitadas"
+            label="Marcas que você prefere evitar"
+            values={avoided}
+            onChange={setAvoided}
+            format={titleCase}
+            placeholder="Ex.: Brilho"
+            hint="Estas marcas descem no ranking, mas continuam aparecendo se forem a única opção."
+            error={fieldError['preferencias.marcas_evitadas']}
           />
         </div>
       </section>
@@ -155,7 +166,7 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
             </div>
             {fieldError.orcamento_mensal
               ? <FieldError id="perfil-orcamento-erro" text={fieldError.orcamento_mensal} />
-              : <span className="field-hint" id="perfil-orcamento-dica">Quanto você quer gastar por mês com o agente. O teto de cada compra fica nas políticas.</span>}
+              : <span className="field-hint" id="perfil-orcamento-dica">Se uma cesta passar deste valor, o agente não compra sozinho e pede a sua aprovação. O teto de cada compra fica nas políticas.</span>}
           </div>
         </div>
       </section>
@@ -174,11 +185,11 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
                 value={cep}
                 onChange={(event) => setCep(maskCep(event.target.value))}
                 placeholder="00000-000"
-                aria-invalid={Boolean(fieldError['endereco.cep'])}
-                aria-describedby={fieldError['endereco.cep'] ? 'perfil-cep-erro' : 'perfil-cep-dica'}
+                aria-invalid={Boolean(cepError)}
+                aria-describedby={cepError ? 'perfil-cep-erro' : 'perfil-cep-dica'}
               />
-              {fieldError['endereco.cep']
-                ? <FieldError id="perfil-cep-erro" text={fieldError['endereco.cep']} />
+              {cepError
+                ? <FieldError id="perfil-cep-erro" text={cepError} />
                 : <span className="field-hint" id="perfil-cep-dica">Ao salvar, eu completo rua, bairro e cidade pelo CEP.</span>}
             </div>
             <div className="field">
@@ -214,7 +225,7 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
               <MapPin aria-hidden="true" />
               <p>
                 <strong>{address.logradouro}, {address.numero}{address.complemento ? ` · ${address.complemento}` : ''}</strong>
-                <span className="text-small text-muted">{address.bairro} · {address.cidade}/{address.uf} · CEP {address.cep}</span>
+                <span className="text-small text-muted">{address.bairro} · {address.cidade}/{address.uf} · CEP {maskCep(address.cep)}</span>
               </p>
             </div>
           ) : (
@@ -249,9 +260,9 @@ export function ProfilePage() {
         <div>
           <span className="text-label">Preferências</span>
           <h1>Seu perfil</h1>
-          <p>Seus dados, o que pesa no ranking das ofertas, seu orçamento e onde as compras chegam.</p>
+          <p>Seus dados, as marcas que pesam no ranking, seu orçamento e onde as compras chegam.</p>
         </div>
-        {profile && <p className="text-caption">Atualizado em {formatDateTime(profile.atualizado_em)}</p>}
+        {profile && <p className="text-caption">Atualizado em {formatDateTime(profile.atualizado_em ?? profile.criado_em)}</p>}
       </header>
 
       {loading && !profile && (

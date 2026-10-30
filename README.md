@@ -40,13 +40,14 @@ Nenhuma credencial deve ser commitada. O arquivo `.env` está ignorado pelo Git.
 
 ## Contrato com a API
 
-As rotas que o front já usa, mas que a API ainda não tem, estão em [`docs/contrato-api.md`](docs/contrato-api.md), com corpo, resposta e erros. Enquanto uma rota não existir, a tela mostra "Esta parte ainda está sendo conectada"; no modo de demonstração ela funciona com dados simulados.
+O formato de cada rota que o front usa está resumido em [`docs/contrato-api.md`](docs/contrato-api.md), a partir do contrato de integração do backend. Enquanto uma rota não existir (hoje, `/usuarios/me` e `/auditoria`), a tela mostra "Esta parte ainda está sendo conectada"; no modo de demonstração ela funciona com dados simulados.
 
 ## Rotas já preparadas
 
 - `/entrar` e `/cadastro`: autenticação
 - `/inicio`: visão geral da jornada
-- `/compras/nova`: criação de uma compra por intenção
+- `/compras/nova`: lista de compras em texto livre
+- `/compras/{id}`: cesta montada, alternativas de cada item e aprovação com senha
 - `/politicas`: regras e autonomia
 - `/perfil`: preferências, orçamento e entrega
 - `/autorizacoes`: autorizações limitadas

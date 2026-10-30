@@ -142,7 +142,7 @@ export function PolicyForm({ policy, onSubmit, onCancel }: PolicyFormProps) {
           values={stores}
           onChange={setStores}
           format={titleCase}
-          placeholder="Ex.: Loja Sonora"
+          placeholder="Ex.: Mercado Exemplo"
           hint="Deixe vazio para aceitar qualquer loja."
           error={fieldError.lojas}
         />

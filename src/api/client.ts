@@ -32,22 +32,27 @@ async function apiIsUp() {
   }
 }
 
-type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown }
+type RequestOptions = Omit<RequestInit, 'body'> & {
+  body?: unknown
+  // Rota que confere a senha de novo (aprovar compra): o 401 dela é senha errada, não sessão vencida.
+  reauth?: boolean
+}
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { reauth = false, ...init } = options
   const token = window.localStorage.getItem(TOKEN_KEY)
-  const headers = new Headers(options.headers)
+  const headers = new Headers(init.headers)
 
   headers.set('Accept', 'application/json')
-  if (options.body !== undefined) headers.set('Content-Type', 'application/json')
+  if (init.body !== undefined) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
   let response: Response
   try {
     response = await fetch(`${API_URL}${path}`, {
-      ...options,
+      ...init,
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
     })
   } catch {
     // Uma rota que ainda não existe responde 404 também ao preflight do CORS, e o navegador só
@@ -60,10 +65,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload = hasJson ? await response.json() : undefined
 
   if (!response.ok) {
-    // Um 401 com detalhes.senha é a senha errada na reautenticação (aprovar compra), não a
-    // sessão vencida: a pessoa continua logada e tenta de novo.
-    const wrongPassword = Boolean(payload?.detalhes?.senha)
-    if (response.status === 401 && token && !wrongPassword) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    // Na reautenticação o 401 é a senha errada, e a pessoa continua logada para tentar de novo.
+    if (response.status === 401 && token && !reauth) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
     const message = payload?.erro || 'Não foi possível concluir a solicitação.'
     throw new ApiError(message, response.status, payload?.detalhes, payload)
   }

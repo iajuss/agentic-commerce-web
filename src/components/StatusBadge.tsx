@@ -9,7 +9,6 @@ import {
   Hand,
   KeyRound,
   ListOrdered,
-  LoaderCircle,
   PackageCheck,
   SearchX,
   ShieldCheck,
@@ -42,11 +41,11 @@ const badges = {
     recomendada: { label: 'Recomendada', tone: 'accent', icon: Sparkle },
   },
   solicitacao: {
-    processando: { label: 'Buscando ofertas', tone: 'info', icon: LoaderCircle },
-    com_resultado: { label: 'Esperando você', tone: 'attention', icon: ListOrdered },
+    aguardando_aprovacao: { label: 'Esperando você', tone: 'attention', icon: ListOrdered },
     sem_resultado: { label: 'Sem resultado', tone: 'neutral', icon: SearchX },
     aprovada: { label: 'Aprovada', tone: 'success', icon: CircleCheck },
-    cancelada: { label: 'Cancelada', tone: 'neutral', icon: CircleX },
+    concluida: { label: 'Concluída', tone: 'info', icon: CheckCheck },
+    expirada: { label: 'Expirada', tone: 'neutral', icon: Clock },
   },
   autorizacao: {
     ativa: { label: 'Ativa', tone: 'success', icon: KeyRound },

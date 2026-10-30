@@ -1,27 +1,40 @@
 import type { ReactNode } from 'react'
-import { MessageSquareText, ShieldX, Star, Store, Truck } from 'lucide-react'
-import { offerTotal, type Offer } from '../api/solicitacoes'
-import { categoryLabel } from '../utils/categories'
+import { MessageSquareText, Star, Store, Truck } from 'lucide-react'
+import type { Offer } from '../api/solicitacoes'
 import { formatBRL } from '../utils/format'
 import { StatusBadge } from './StatusBadge'
 
 type OfferCardProps = {
   offer: Offer
-  // A posição na tela (1º, 2º...) pode diferir de offer.posicao quando há ofertas fora da política.
-  isTop: boolean
+  // Lugar no ranking do item: 1 é a recomendada, as alternativas vêm depois.
+  position: number
+  quantity: number
   actions?: ReactNode
 }
 
-// Card de oferta ranqueada da identidade visual: posição, preço, selos, motivo e ações.
-export function OfferCard({ offer, isTop, actions }: OfferCardProps) {
-  const titleId = `oferta-${offer.id}`
-  const outside = !offer.dentro_da_politica
+// "R$ 5,58/kg": o preço por unidade é o que o ranking compara entre embalagens diferentes.
+function unitPrice(offer: Offer) {
+  if (!offer.preco_por_unidade || !offer.unidade) return null
+  const unit = offer.unidade === 'l' ? 'L' : offer.unidade
+  return `${formatBRL(offer.preco_por_unidade)}/${unit}`
+}
+
+function freight(offer: Offer) {
+  if (offer.frete === null) return 'Frete a confirmar'
+  return offer.frete ? `+ ${formatBRL(offer.frete)} de frete` : 'Frete grátis'
+}
+
+// Card de oferta ranqueada da identidade visual: posição, preço, selos e o motivo em frases curtas.
+export function OfferCard({ offer, position, quantity, actions }: OfferCardProps) {
+  const titleId = `oferta-${offer.id_externo}`
+  const isTop = position === 1
+  const perUnit = unitPrice(offer)
 
   return (
-    <article className="offer" data-top={isTop || undefined} data-fora={outside || undefined} aria-labelledby={titleId}>
-      <div className="offer-rank" aria-hidden={outside || undefined}>
-        <b>{outside ? '–' : offer.posicao}</b>
-        <span>{outside ? 'Fora' : 'Lugar'}</span>
+    <article className="offer" data-top={isTop || undefined} aria-labelledby={titleId}>
+      <div className="offer-rank" aria-hidden="true">
+        <b>{position}</b>
+        <span>Lugar</span>
       </div>
 
       <div className="offer-main">
@@ -29,13 +42,13 @@ export function OfferCard({ offer, isTop, actions }: OfferCardProps) {
           <div className="offer-identity">
             {offer.imagem && <img className="offer-thumb" src={offer.imagem} alt="" loading="lazy" />}
             <div>
-              <h3 className="offer-title" id={titleId}>
-                {!outside && <span className="sr-only">{offer.posicao}º lugar: </span>}
+              <h4 className="offer-title" id={titleId}>
+                <span className="sr-only">{position}º lugar: </span>
                 {offer.titulo}
-              </h3>
+              </h4>
               <div className="offer-store">
                 <span className="offer-fact"><Store aria-hidden="true" />{offer.loja}</span>
-                <span className="tag">{categoryLabel(offer.categoria)}</span>
+                {offer.marca && <span className="tag">{offer.marca}</span>}
                 {offer.prazo_dias !== null && (
                   <span className="offer-fact"><Truck aria-hidden="true" />Chega em {offer.prazo_dias} {offer.prazo_dias === 1 ? 'dia' : 'dias'}</span>
                 )}
@@ -46,42 +59,20 @@ export function OfferCard({ offer, isTop, actions }: OfferCardProps) {
             </div>
           </div>
           <div className="offer-price">
-            <span className="price">{formatBRL(offerTotal(offer))}</span>
-            <small>{offer.frete ? `${formatBRL(offer.preco)} + ${formatBRL(offer.frete)} de frete` : 'Frete grátis'}</small>
+            <span className="price">{formatBRL(offer.preco * quantity)}</span>
+            <small>
+              {quantity > 1 ? `${quantity} × ${formatBRL(offer.preco)}` : perUnit ?? formatBRL(offer.preco)}
+              {' · '}{freight(offer)}
+            </small>
           </div>
         </div>
 
-        <div className="offer-badges">
-          {isTop && <StatusBadge kind="oferta" status="recomendada" />}
-          <StatusBadge kind="oferta" status={outside ? 'fora' : 'dentro'} />
-          {!outside && offer.compra_automatica && <StatusBadge kind="autonomia" status="automatica" />}
-        </div>
+        {isTop && <div className="offer-badges"><StatusBadge kind="oferta" status="recomendada" /></div>}
 
-        {outside ? (
+        {offer.explicacao.length > 0 && (
           <div className="offer-why">
-            <h4><ShieldX aria-hidden="true" />Por que está fora da política</h4>
-            <p>{offer.explicacao}</p>
-            {offer.motivos_recusa.length > 0 && (
-              <ul className="offer-reasons">{offer.motivos_recusa.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-            )}
-          </div>
-        ) : (
-          <div className="offer-why">
-            <h4><MessageSquareText aria-hidden="true" />Por que ficou em {offer.posicao}º</h4>
-            <p>{offer.explicacao}</p>
-            {offer.criterios.length > 0 && (
-              <ul className="criteria">
-                {offer.criterios.map((criterion) => (
-                  <li key={criterion.nome}>
-                    <span>{criterion.nome}</span>
-                    <span className="bar" role="img" aria-label={`${criterion.nome}: nota ${Math.round(criterion.nota * 10)} de 10`}>
-                      <i style={{ width: `${Math.round(Math.min(Math.max(criterion.nota, 0), 1) * 100)}%` }} />
-                    </span>
-                    <span className="value">{criterion.valor}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <h4><MessageSquareText aria-hidden="true" />{isTop ? 'Por que escolhi esta' : `Por que ficou em ${position}º`}</h4>
+            <ul className="offer-reasons">{offer.explicacao.map((reason) => <li key={reason}>{reason}</li>)}</ul>
           </div>
         )}
 

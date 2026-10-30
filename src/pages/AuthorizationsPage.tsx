@@ -1,28 +1,33 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Ban, CircleAlert, KeyRound, Search } from 'lucide-react'
 import { isNotConnected } from '../api/client'
-import { effectiveStatus, listAuthorizations, revokeAuthorization, type Authorization } from '../api/autorizacoes'
+import { effectiveStatus, itemCount, listAuthorizations, revokeAuthorization, type Authorization } from '../api/autorizacoes'
 import { NotConnected } from '../components/NotConnected'
 import { StatusBadge } from '../components/StatusBadge'
 import { useResource } from '../hooks/useResource'
-import { atStore, formatBRL, formatDateTime } from '../utils/format'
+import { atStores, formatBRL, formatDateTime, formatTime, joinList, plural } from '../utils/format'
 
 function errorMessage(caught: unknown) {
   return caught instanceof Error ? caught.message : 'Não foi possível concluir. Tente de novo.'
 }
 
-type CardProps = { authorization: Authorization; onRevoked: (authorization: Authorization) => void }
+type CardProps = {
+  authorization: Authorization
+  onRevoked: (authorization: Authorization) => void
+  // Ação principal da autorização ativa (ex.: gerar o Pix do pedido).
+  action?: ReactNode
+}
 
-function AuthorizationCard({ authorization, onRevoked }: CardProps) {
+function AuthorizationCard({ authorization, onRevoked, action }: CardProps) {
   const [confirming, setConfirming] = useState(false)
   const [revoking, setRevoking] = useState(false)
   const [error, setError] = useState('')
   const keepRef = useRef<HTMLButtonElement>(null)
   const revokeRef = useRef<HTMLButtonElement>(null)
   const wasConfirming = useRef(false)
-  const status = effectiveStatus(authorization)
   const titleId = `autorizacao-${authorization.id}`
+  const units = itemCount(authorization.itens)
 
   // Ao abrir a confirmação, o foco vai para "Manter"; ao fechar, volta para "Revogar".
   useEffect(() => {
@@ -36,7 +41,7 @@ function AuthorizationCard({ authorization, onRevoked }: CardProps) {
     setRevoking(true)
     try {
       await revokeAuthorization(authorization.id)
-      onRevoked({ ...authorization, status: 'revogada' })
+      onRevoked(authorization)
     } catch (caught) {
       setError(errorMessage(caught))
       setRevoking(false)
@@ -46,27 +51,38 @@ function AuthorizationCard({ authorization, onRevoked }: CardProps) {
   return (
     <article className="card authorization-card" aria-labelledby={titleId}>
       <div className="policy-card-head">
-        <h3 id={titleId}>{authorization.titulo}</h3>
+        <h3 id={titleId}>Cesta com {plural(units, 'item', 'itens')}</h3>
         <div className="row">
-          <StatusBadge kind="autorizacao" status={status} />
-          <StatusBadge kind="autonomia" status={authorization.automatica ? 'automatica' : 'manual'} />
+          <StatusBadge kind="autorizacao" status={effectiveStatus(authorization)} />
+          <StatusBadge kind="autonomia" status={authorization.origem} />
         </div>
       </div>
 
       <dl className="summary-list">
         <div><dt>Valor máximo</dt><dd className="price">{formatBRL(authorization.valor_maximo)}</dd></div>
-        <div><dt>Loja</dt><dd>{authorization.loja}</dd></div>
-        <div><dt>{status === 'ativa' ? 'Vale até' : 'Validade'}</dt><dd>{formatDateTime(authorization.expira_em)}</dd></div>
-        {authorization.politica_nome && <div><dt>Política</dt><dd>{authorization.politica_nome}</dd></div>}
+        <div><dt>{authorization.lojas.length === 1 ? 'Loja' : 'Lojas'}</dt><dd>{joinList(authorization.lojas)}</dd></div>
+        <div><dt>Vale até</dt><dd>{formatDateTime(authorization.expira_em)}</dd></div>
       </dl>
+
+      <details className="authorization-items">
+        <summary>Ver os {plural(units, 'item', 'itens')} autorizados</summary>
+        <ul>
+          {authorization.itens.map((item) => (
+            <li key={item.id_externo}>
+              <span>{item.quantidade}× {item.titulo}</span>
+              <span className="num">{formatBRL(item.preco * item.quantidade)}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
 
       {error && <div className="alert alert-danger" role="alert"><CircleAlert aria-hidden="true" /><p>{error}</p></div>}
 
       {confirming ? (
         <div className="policy-confirm" role="group" aria-labelledby={`${titleId}-confirmar`} onKeyDown={(event) => { if (event.key === 'Escape' && !revoking) setConfirming(false) }}>
           <p id={`${titleId}-confirmar`}>
-            <strong>Revogar a autorização de {formatBRL(authorization.valor_maximo)} {atStore(authorization.loja)}?</strong>
-            {' '}Esse valor deixa de estar reservado e a compra não acontece. Não dá para desfazer.
+            <strong>Revogar a autorização de {formatBRL(authorization.valor_maximo)} {atStores(authorization.lojas)}?</strong>
+            {' '}O valor deixa de estar reservado e a lista volta a esperar a sua aprovação.
           </p>
           <div className="row">
             <button className="btn btn-danger btn-sm" type="button" onClick={confirm} aria-busy={revoking} disabled={revoking}>
@@ -77,15 +93,13 @@ function AuthorizationCard({ authorization, onRevoked }: CardProps) {
         </div>
       ) : (
         <div className="policy-card-actions">
-          <span className="text-caption">Criada em {formatDateTime(authorization.criada_em)}</span>
           <div className="row">
-            {authorization.solicitacao_id && <Link className="btn btn-ghost btn-sm" to={`/compras/${authorization.solicitacao_id}`}>Ver solicitação</Link>}
-            {status === 'ativa' && (
-              <button ref={revokeRef} className="btn btn-secondary btn-sm" type="button" onClick={() => setConfirming(true)}>
-                <Ban aria-hidden="true" />Revogar
-              </button>
-            )}
+            <Link className="btn btn-ghost btn-sm" to={`/compras/${authorization.solicitacao_id}`}>Ver lista</Link>
+            <button ref={revokeRef} className="btn btn-secondary btn-sm" type="button" onClick={() => setConfirming(true)}>
+              <Ban aria-hidden="true" />Revogar
+            </button>
           </div>
+          {action}
         </div>
       )}
     </article>
@@ -96,17 +110,22 @@ export function AuthorizationsPage() {
   const { data: authorizations, error, loading, reload, setData } = useResource(listAuthorizations)
   const [notice, setNotice] = useState('')
   const headingRef = useRef<HTMLHeadingElement>(null)
+  // A API já filtra as vencidas; a tela também esconde as que venceram enquanto estava aberta.
+  const [now, setNow] = useState(() => Date.now())
 
-  function handleRevoked(updated: Authorization) {
-    setData((current) => current?.map((item) => (item.id === updated.id ? updated : item)))
-    setNotice(`Autorização de ${updated.titulo} revogada.`)
-    // O card sai de "Ativas"; o foco vai para o título da página para não se perder.
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  function handleRevoked(revoked: Authorization) {
+    setData((current) => current?.filter((item) => item.id !== revoked.id))
+    setNotice(`Autorização de ${formatBRL(revoked.valor_maximo)} revogada. A lista voltou a esperar a sua aprovação.`)
+    // O card some; o foco vai para o título da página para não se perder.
     window.requestAnimationFrame(() => headingRef.current?.focus())
   }
 
-  const now = Date.now()
   const active = authorizations?.filter((item) => effectiveStatus(item, now) === 'ativa') ?? []
-  const past = authorizations?.filter((item) => effectiveStatus(item, now) !== 'ativa') ?? []
 
   return (
     <div className="page page-enter">
@@ -114,7 +133,7 @@ export function AuthorizationsPage() {
         <div>
           <span className="text-label">Aprovação e pagamento</span>
           <h1 ref={headingRef} tabIndex={-1}>Autorizações</h1>
-          <p>Cada aprovação vira uma autorização limitada: um valor máximo, uma loja, uso único e validade curta. Enquanto estiver ativa, você pode revogar.</p>
+          <p>Cada aprovação vira uma autorização limitada: um valor máximo, as lojas e os itens da cesta, uso único e validade curta. Enquanto ela estiver ativa, você pode revogar.</p>
         </div>
       </header>
 
@@ -129,7 +148,7 @@ export function AuthorizationsPage() {
         </div>
       )}
 
-      {Boolean(error) && !authorizations && (isNotConnected(error) ? <NotConnected message="Suas autorizações, com valor, loja e validade, vão aparecer aqui assim que a API tiver essa rota." /> : (
+      {Boolean(error) && !authorizations && (isNotConnected(error) ? <NotConnected message="Suas autorizações, com valor, lojas e validade, vão aparecer aqui assim que a API tiver essa rota." /> : (
         <div className="alert alert-danger" role="alert">
           <CircleAlert aria-hidden="true" />
           <div className="stack">
@@ -139,36 +158,24 @@ export function AuthorizationsPage() {
         </div>
       ))}
 
-      {authorizations && (
-        <>
-          <section className="stack" aria-labelledby="autorizacoes-ativas">
-            <h2 id="autorizacoes-ativas">Ativas agora</h2>
-            {active.length ? (
-              <div className="policy-grid">
-                {active.map((item) => <AuthorizationCard key={item.id} authorization={item} onRevoked={handleRevoked} />)}
-              </div>
-            ) : (
-              <section className="panel">
-                <div className="empty-state">
-                  <span className="empty-state-icon"><KeyRound aria-hidden="true" /></span>
-                  <strong>Nenhuma autorização ativa.</strong>
-                  <p>Quando você aprovar uma compra, ou o agente comprar dentro de uma política automática, a autorização aparece aqui.</p>
-                  <Link className="btn btn-primary" to="/compras/nova"><Search aria-hidden="true" />Nova compra</Link>
-                </div>
-              </section>
-            )}
-          </section>
-
-          {past.length > 0 && (
-            <section className="stack" aria-labelledby="autorizacoes-anteriores">
-              <h2 id="autorizacoes-anteriores">Anteriores</h2>
-              <div className="policy-grid">
-                {past.map((item) => <AuthorizationCard key={item.id} authorization={item} onRevoked={handleRevoked} />)}
-              </div>
-            </section>
-          )}
-        </>
-      )}
+      {authorizations && (active.length ? (
+        <section className="stack" aria-labelledby="autorizacoes-ativas">
+          <h2 id="autorizacoes-ativas">Ativas agora</h2>
+          <div className="policy-grid">
+            {active.map((item) => <AuthorizationCard key={item.id} authorization={item} onRevoked={handleRevoked} />)}
+          </div>
+          <p className="text-small text-muted">A primeira vence às {formatTime(active[active.length - 1].expira_em)}. As usadas viram pedidos; as revogadas e vencidas ficam na <Link to="/auditoria">auditoria</Link>.</p>
+        </section>
+      ) : (
+        <section className="panel">
+          <div className="empty-state">
+            <span className="empty-state-icon"><KeyRound aria-hidden="true" /></span>
+            <strong>Nenhuma autorização ativa.</strong>
+            <p>Quando você aprovar uma cesta, a autorização aparece aqui por alguns minutos, até virar pedido. As usadas, revogadas e vencidas ficam na auditoria.</p>
+            <Link className="btn btn-primary" to="/compras/nova"><Search aria-hidden="true" />Nova compra</Link>
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

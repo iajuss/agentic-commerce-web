@@ -1,39 +1,44 @@
 import { demoMode } from './auth'
 import { apiRequest } from './client'
-import { demoEvents, wait, type DemoActor } from './demo'
+import { demoEvents, wait } from './demo'
 
-// Contrato em docs/contrato-api.md (GET /auditoria).
+// Contrato em docs/contrato-api.md (GET /auditoria). Os tipos de evento estão na seção 7 do
+// contrato de integração do backend.
 
-// Quem agiu: você, o agente, uma política (bloqueio) ou o sistema (expiração, pagamento).
-export type AuditActor = DemoActor
+export type ResourceType = 'usuario' | 'politica' | 'solicitacao' | 'autorizacao' | 'pedido' | 'chamado'
 
 export type AuditEvent = {
   id: string
   tipo: string
-  ator: AuditActor
-  descricao: string
+  recurso: { tipo: ResourceType | string; id: string } | null
+  // Dados pequenos do evento (ex.: total, origem). Nunca senha nem token.
+  dados: Record<string, unknown> | null
   criado_em: string
-  dados: Record<string, unknown>
 }
 
-// GET /auditoria: a trilha da pessoa, da mais recente para a mais antiga.
-export function listAuditEvents() {
-  if (demoMode) return demo.list()
-  return apiRequest<AuditEvent[]>('/auditoria')
+export type AuditPage = {
+  eventos: AuditEvent[]
+  // Id para pedir a página seguinte (mais antiga); null quando acabou.
+  proximo: string | null
 }
 
-// Se a API não mandar "ator", dá para deduzir pelo começo do tipo.
-export function actorOf(event: Pick<AuditEvent, 'tipo'> & { ator?: AuditActor }): AuditActor {
-  if (event.ator) return event.ator
-  if (event.tipo.startsWith('politica.')) return 'politica'
-  if (event.tipo.startsWith('ofertas.') || event.tipo === 'compra.automatica') return 'agente'
-  if (event.tipo === 'autorizacao.expirada' || event.tipo === 'autorizacao.usada') return 'sistema'
-  return 'voce'
+export const AUDIT_PAGE_SIZE = 50
+
+// GET /auditoria?limite=50&antes_de=<id>: do mais recente para o mais antigo.
+export function listAuditEvents(antesDe?: string) {
+  if (demoMode) return demo.list(antesDe)
+  const query = new URLSearchParams({ limite: String(AUDIT_PAGE_SIZE) })
+  if (antesDe) query.set('antes_de', antesDe)
+  return apiRequest<AuditPage>(`/auditoria?${query}`)
 }
 
 const demo = {
-  async list(): Promise<AuditEvent[]> {
+  async list(antesDe?: string): Promise<AuditPage> {
     await wait()
-    return [...demoEvents].sort((a, b) => b.criado_em.localeCompare(a.criado_em)).map((event) => structuredClone(event))
+    const ordered = [...demoEvents].reverse()
+    const start = antesDe ? ordered.findIndex((event) => event.id === antesDe) + 1 : 0
+    const page = ordered.slice(start, start + AUDIT_PAGE_SIZE)
+    const more = start + AUDIT_PAGE_SIZE < ordered.length
+    return { eventos: structuredClone(page), proximo: more ? page[page.length - 1].id : null }
   },
 }

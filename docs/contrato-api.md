@@ -1,345 +1,160 @@
 # Contrato da API usado pelo front-end
 
-Rotas que o React já chama, mas que a API ainda não tem. O backend pode implementar a partir
-daqui; se precisar mudar algo, ajuste este arquivo no mesmo PR e avise a Pessoa 4. As rotas
-que já existem (`/usuarios`, `/sessoes`, `/politicas`) estão documentadas no README da API.
+A fonte da verdade é o **contrato de integração do backend**:
+[`docs/plano-backend/00-contrato-de-integracao.md`](https://github.com/iajuss/agentic-commerce-api/blob/main/docs/plano-backend/00-contrato-de-integracao.md)
+no repositório `agentic-commerce-api`. Este arquivo resume o que cada tela usa e os detalhes que
+mudam o comportamento do React. Os tipos TypeScript de cada rota ficam em `src/api/` e seguem os
+formatos abaixo, conferidos contra a API rodando em 30/10/2026.
 
-Os tipos TypeScript de cada rota ficam em `src/api/` e seguem este documento.
+Se o backend mudar uma rota, campo ou status, ajuste aqui e em `src/api/` no mesmo PR.
 
 ## Convenções
 
-- Toda rota exige `Authorization: Bearer <token>` e só enxerga os dados de quem fez a requisição
-  (recurso de outra pessoa responde 404).
-- Erro sempre no formato da API: `{"erro": "mensagem para o usuário", "detalhes": {"campo": "problema"}}`.
+- Toda rota, menos `/health`, `POST /usuarios` e `POST /sessoes`, exige `Authorization: Bearer <token>`
+  e só enxerga os dados de quem fez a requisição (recurso de outra pessoa responde `404`).
+- Erro sempre no formato `{"erro": "mensagem para o usuário", "detalhes": {"campo": "problema"}}`.
   A tela mostra `erro` no topo e cada item de `detalhes` embaixo do campo com o mesmo nome.
-  Campos aninhados usam ponto: `"endereco.cep"`.
-- Datas em ISO 8601 com fuso (`2026-10-27T14:03:00+00:00`), valores em reais como número
-  (`389.9`), ids como texto.
-- Enquanto uma rota não existir, o Flask responde 404 (inclusive ao preflight do CORS) e a tela
+- Ids são texto, datas vêm em ISO 8601 com fuso e valores em reais são números (`51.38`).
+- Criar responde `201` com `Location`; excluir ou revogar responde `204` sem corpo.
+- Enquanto uma rota não existir, o Flask responde `404` (inclusive ao preflight do CORS) e a tela
   mostra "Esta parte ainda está sendo conectada" em vez de quebrar.
 
-## Perfil: `GET /usuarios/me` e `PATCH /usuarios/me`
+## Rotas e telas
 
-Responsável no backend: Pessoa 3. Tela: `/perfil` (`src/api/perfil.ts`).
+| Rota | Tela | Módulo do backend | Situação em 30/10 |
+|---|---|---|---|
+| `POST /usuarios`, `POST /sessoes` | `/cadastro`, `/entrar` | M1 | Pronta |
+| `GET`, `PATCH /usuarios/me` | `/perfil` | M1 | **Ainda não existe** |
+| `GET`, `POST /politicas`, `PUT`, `DELETE /politicas/{id}` | `/politicas`, `/inicio` | M1 | Pronta |
+| `GET /auditoria` | `/auditoria` | M1 | **Ainda não existe** |
+| `POST`, `GET /solicitacoes`, `GET`, `DELETE /solicitacoes/{id}` | `/compras/nova`, `/compras/{id}` | M2 | Pronta |
+| `POST /solicitacoes/{id}/autorizacoes` | modal de aprovação em `/compras/{id}` | M3 | Pronta |
+| `GET /autorizacoes`, `DELETE /autorizacoes/{id}` | `/autorizacoes` | M3 | Pronta |
+| `POST`, `GET /pedidos`, `GET`, `PATCH /pedidos/{id}` | `/pedidos`, `/pedidos/{id}` | M3 | Pronta |
+| `POST /simulador-pix/pagamentos` | botão "Simular pagamento" em `/pedidos/{id}` | M3 | Pronta |
+| `POST`, `GET /pedidos/{id}/chamados` | `/pedidos/{id}` | M3 | Pronta |
 
-### `GET /usuarios/me` → `200`
+## Solicitação: a lista de compras vira uma cesta
 
-```json
-{
-  "id": "6ae0c58e05554cb018a1d2c0",
-  "nome": "Ana Souza",
-  "email": "ana@exemplo.com",
-  "preferencias": {
-    "prioridade": "preco",
-    "lojas_preferidas": ["loja sonora"]
-  },
-  "orcamento_mensal": 1200,
-  "endereco": {
-    "cep": "04546-042",
-    "logradouro": "Rua Quatá",
-    "numero": "300",
-    "complemento": "",
-    "bairro": "Vila Olímpia",
-    "cidade": "São Paulo",
-    "uf": "SP"
-  },
-  "atualizado_em": "2026-10-27T14:03:00+00:00"
-}
-```
-
-- Usuário recém-cadastrado: `preferencias` com os valores padrão (`"prioridade": "preco"`,
-  `"lojas_preferidas": []`), `orcamento_mensal: null` e `endereco: null`. `atualizado_em` pode
-  ser igual ao `criado_em` do usuário.
-- `prioridade`: `preco` | `prazo` | `avaliacao`. É o critério que pesa mais no ranking das ofertas.
-- `lojas_preferidas`: lista de textos em minúsculas, como as lojas das políticas; desempata o ranking.
-- `orcamento_mensal`: número maior que zero ou `null` (sem orçamento). É só uma referência; o
-  teto de cada compra continua nas políticas.
-- `cep` volta sempre com máscara (`00000-000`).
-
-### `PATCH /usuarios/me` → `200` com o perfil completo (mesmo formato do GET)
-
-O React sempre manda o formulário inteiro:
+`POST /solicitacoes` com `{"texto": "arroz 5kg, 2 leites integrais e detergente"}` (3 a 500 caracteres)
+responde `201` já com a cesta pronta (não há processamento em segundo plano):
 
 ```json
 {
-  "nome": "Ana Souza",
-  "preferencias": { "prioridade": "prazo", "lojas_preferidas": ["loja sonora"] },
-  "orcamento_mensal": 1200,
-  "endereco": { "cep": "01310-100", "numero": "1000", "complemento": "Apto 12" }
-}
-```
-
-- Campos ausentes ficam como estão; campos desconhecidos são ignorados (como em `/politicas`).
-- `endereco: null` apaga o endereço.
-- **O React nunca chama o ViaCEP.** A API recebe só `cep`, `numero` e `complemento`, consulta
-  `https://viacep.com.br/ws/{cep}/json/` e salva `logradouro`, `bairro`, `cidade` (campo
-  `localidade` do ViaCEP) e `uf`. O `cep` pode chegar com ou sem hífen.
-- `email` não é editável por esta rota (se vier, é ignorado).
-
-### Erros
-
-`400` com os campos inválidos:
-
-```json
-{
-  "erro": "Confira os campos destacados.",
-  "detalhes": {
-    "nome": "Informe um nome de até 80 caracteres.",
-    "orcamento_mensal": "Informe um valor maior que zero ou deixe vazio.",
-    "endereco.cep": "Não encontrei este CEP. Confira os números.",
-    "endereco.numero": "Informe o número."
-  }
-}
-```
-
-| Situação | Status | Chave em `detalhes` |
-|---|---|---|
-| `nome` vazio ou com mais de 80 caracteres | 400 | `nome` |
-| `preferencias.prioridade` fora da lista | 400 | `preferencias.prioridade` |
-| `preferencias.lojas_preferidas` não é lista de textos | 400 | `preferencias.lojas_preferidas` |
-| `orcamento_mensal` não é número maior que zero nem `null` | 400 | `orcamento_mensal` |
-| CEP sem 8 números | 400 | `endereco.cep` |
-| ViaCEP responde `{"erro": true}` (CEP inexistente) | 400 | `endereco.cep` |
-| `numero` vazio | 400 | `endereco.numero` |
-| ViaCEP fora do ar ou demorou mais de 5 s | 502 | (sem detalhes) `"erro": "Não consegui consultar o CEP agora. Tente de novo em instantes."` |
-
-## Solicitações: `POST /solicitacoes`, `GET /solicitacoes`, `GET /solicitacoes/{id}`, `DELETE /solicitacoes/{id}`
-
-Responsável no backend: Pessoa 3. Telas: `/compras/nova` (envio e histórico) e `/compras/{id}`
-(resultado). Tipos em `src/api/solicitacoes.ts`.
-
-### Solicitação
-
-```json
-{
-  "id": "6ae0c9f105554cb018a1d2d0",
-  "intencao": "Fone confortável para reuniões, até R$ 450",
-  "status": "com_resultado",
-  "ofertas": [
+  "id": "6ae5121c...", "texto": "arroz 5kg, 2 leites integrais e detergente",
+  "itens": [
     {
-      "id": "6ae0c9f105554cb018a1d2d1",
-      "titulo": "Headset Vox Office 30",
-      "preco": 349.9,
-      "frete": 0,
-      "loja": "Loja Sonora",
-      "categoria": "mobile-accessories",
-      "imagem": "https://cdn.dummyjson.com/products/images/mobile-accessories/1/thumbnail.png",
-      "posicao": 1,
-      "explicacao": "Ficou em 1º: custa R$ 59,00 menos que a 2ª e chega 1 dia antes.",
-      "dentro_da_politica": true,
-      "motivos_recusa": [],
-      "compra_automatica": false,
-      "prazo_dias": 2,
-      "avaliacao": 4.6,
-      "criterios": [
-        { "nome": "Preço total", "nota": 1, "valor": "R$ 349,90" },
-        { "nome": "Prazo", "nota": 1, "valor": "2 dias" },
-        { "nome": "Avaliação", "nota": 0.92, "valor": "4,6 de 5" }
-      ]
-    },
-    {
-      "id": "6ae0c9f105554cb018a1d2d4",
-      "titulo": "Fone Studio Max",
-      "preco": 899,
-      "frete": 0,
-      "loja": "Mercado Tech",
-      "categoria": "mobile-accessories",
-      "imagem": null,
-      "posicao": 4,
-      "explicacao": "Fica fora das suas políticas, então não posso comprar. Veja o motivo abaixo.",
-      "dentro_da_politica": false,
-      "motivos_recusa": ["Eletrônicos do dia a dia: total de R$ 899,00 passa do teto de R$ 500,00"],
-      "compra_automatica": false,
-      "prazo_dias": 2,
-      "avaliacao": 4.9,
-      "criterios": []
+      "descricao": "arroz 5kg", "quantidade": 1, "status": "com_oferta",
+      "recomendada": {
+        "id_externo": "FIXO-001", "fonte": "fixo", "titulo": "Arroz Branco Tipo 1 5kg", "marca": "Grão Dourado",
+        "preco": 27.9, "frete": 0.0, "frete_gratis": true, "prazo_dias": 2, "avaliacao": 4.7,
+        "categoria": "Arroz", "categorias_caminho": ["Alimentos e Bebidas", "Mercearia", "Arroz"],
+        "loja": "Mercado Exemplo", "preco_por_unidade": 5.58, "unidade": "kg", "imagem": null, "link": null,
+        "explicacao": ["Preço por kg: R$ 5,58/kg", "Frete grátis", "Entrega estimada em 2 dias"]
+      },
+      "alternativas": ["até 4 ofertas no mesmo formato"],
+      "descartadas": 0, "explicacao": ["4 ofertas encontradas"]
     }
   ],
-  "criada_em": "2026-10-27T15:54:00+00:00",
-  "atualizada_em": "2026-10-27T15:54:02+00:00"
+  "cesta": {"subtotal": 51.38, "frete": 0.0, "total": 51.38, "lojas": ["Mercado Exemplo", "Atacado Bom Preço"]},
+  "avaliacao": {"permitida": true, "compra_automatica": false, "politica_id": "6ae5121a...", "motivos": []},
+  "status": "aguardando_aprovacao",
+  "compra_automatica": null,
+  "criada_em": "...", "atualizada_em": "..."
 }
 ```
 
-| Campo | Regra |
-|---|---|
-| `status` | `processando` (buscando no catálogo), `com_resultado`, `sem_resultado` (nenhuma oferta encontrada: o fluxo termina), `aprovada` (uma oferta virou autorização), `cancelada` |
-| `ofertas` | Vazia enquanto `processando` e em `sem_resultado`. Inclui as ofertas fora da política, para a pessoa entender por que ficaram de fora |
-| `posicao` | 1 = melhor. As que cabem na política vêm primeiro (1, 2, 3...), as recusadas depois |
-| `explicacao` | Uma frase, em primeira pessoa e com números, dizendo por que ficou nessa posição (tom de voz da identidade visual: critério e número, não adjetivo) |
-| `dentro_da_politica`, `motivos_recusa`, `compra_automatica` | Resultado de `avaliar_oferta` (`permitida`, `motivos`, `compra_automatica`). `motivos_recusa` vazio quando está dentro |
-| `prazo_dias`, `avaliacao` | Do catálogo; `null` se o catálogo não informar |
-| `criterios` | Opcional (pode ser `[]`). Uma entrada por critério do ranking, com `nota` de 0 a 1 (1 = melhor entre as ofertas) e `valor` já formatado em pt-BR. A tela desenha uma barra por critério |
-| `imagem` | URL da miniatura do catálogo ou `null` |
-
-### `POST /solicitacoes` → `201` + `Location: /solicitacoes/{id}`
-
-Corpo: `{"intencao": "Fone confortável para reuniões, até R$ 450"}`. Resposta: a solicitação.
-
-- A API pode responder já com o resultado (`com_resultado` ou `sem_resultado`) ou com
-  `processando`. Enquanto estiver `processando`, a tela chama `GET /solicitacoes/{id}` a cada 2 s.
-- Erros: `400` com `{"detalhes": {"intencao": "Escreva pelo menos 3 letras."}}` (vazia, menos
-  de 3 ou mais de 500 caracteres); `502` com
-  `{"erro": "Não consegui consultar o catálogo agora. Tente de novo em instantes."}` se o catálogo falhar.
-
-### `GET /solicitacoes` → `200`
-
-Histórico da pessoa, da mais recente para a mais antiga, sem as ofertas:
-
-```json
-[
-  { "id": "6ae0c9f105554cb018a1d2d0", "intencao": "Fone confortável para reuniões, até R$ 450", "status": "com_resultado", "criada_em": "2026-10-27T15:54:00+00:00", "quantidade_ofertas": 4 },
-  { "id": "6ae0c0aa05554cb018a1d2c5", "intencao": "Guarda-chuva de golfe com capa térmica", "status": "sem_resultado", "criada_em": "2026-10-24T12:53:00+00:00", "quantidade_ofertas": 0 }
-]
-```
-
-### `GET /solicitacoes/{id}` → `200` com a solicitação, ou `404`
-
-`{"erro": "Não encontrei esta solicitação."}` quando não existe ou é de outra pessoa.
-
-### `DELETE /solicitacoes/{id}` → `204`
-
-Cancela antes da aprovação: só vale para `processando` e `com_resultado` (a tela só mostra o
-botão nesses casos). Depois disso, o status vira `cancelada` e nenhuma oferta dela pode ser aprovada.
-
-- `404` se não existe.
-- `409` com `{"erro": "Esta solicitação não pode mais ser cancelada: ela já foi aprovada, cancelada ou terminou sem ofertas."}`.
+- `status`: `aguardando_aprovacao` · `sem_resultado` (nenhum item com oferta) · `aprovada` · `concluida`
+  (Pix pago) · `expirada` (Pix venceu ou pedido cancelado antes de pagar).
+- Item `sem_oferta` tem `recomendada: null` e fica fora da cesta. `frete: null` quer dizer que a loja não informou.
+- `avaliacao` vale para a **cesta inteira**: só dá para aprovar quando `permitida` é `true`. Os
+  motivos de recusa vêm em `motivos`, já prefixados com o nome da política.
+- **Compra automática:** quando a política permite, o próprio `POST` já aprova e gera o pedido com o
+  Pix. A resposta vem com `status: "aprovada"` e `compra_automatica: {"autorizacao_id", "pedido_id"}`.
+- `GET /solicitacoes` devolve o resumo: `[{"id", "texto", "itens": ["arroz 5kg", ...], "status", "total", "criada_em"}]`.
+- `DELETE /solicitacoes/{id}` **remove** a solicitação (só em `aguardando_aprovacao` ou `sem_resultado`; senão `409`).
 
 ## Aprovação: `POST /solicitacoes/{id}/autorizacoes`
 
-Responsável no backend: Pessoa 2. Tela: modal "Aprovar compra" em `/compras/{id}`
-(`src/components/ApprovalDialog.tsx`, tipos em `src/api/autorizacoes.ts`).
+Corpo: `{"senha": "..."}`. Aprova a cesta inteira, sempre com senha.
 
-Aprova uma oferta com reautenticação e gera a **autorização limitada**: vale só para aquela
-oferta, até `valor_maximo` (preço + frete), naquela loja, por pouco tempo e uma vez só.
+- `201` com a autorização (formato abaixo).
+- **`401` é senha errada, não sessão vencida**: a pessoa continua logada (`reauth: true` em `apiRequest`).
+- `422` quando nenhuma política permite a cesta: `{"erro": "...", "detalhes": {"motivos": ["..."]}}`.
+- `409` quando a solicitação não está mais aguardando aprovação.
 
-### Corpo
-
-```json
-{ "oferta_id": "6ae0c9f105554cb018a1d2d1", "senha": "a senha de login" }
-```
-
-- `senha` é a mesma do login, conferida de novo com o hash do usuário.
-- Se a oferta cabe numa política **automática** (`avaliar_oferta(...).compra_automatica`), a
-  senha não é necessária: o React manda só `oferta_id` e a API gera a autorização com
-  `automatica: true`. Se vier senha nesse caso, ela é ignorada.
-- A API **avalia de novo** a oferta com as políticas atuais: elas podem ter mudado depois do ranking.
-
-### `201` + `Location: /autorizacoes/{id}`
+Autorização:
 
 ```json
 {
-  "id": "6ae0cb2205554cb018a1d2e0",
-  "solicitacao_id": "6ae0c9f105554cb018a1d2d0",
-  "oferta_id": "6ae0c9f105554cb018a1d2d1",
-  "titulo": "Headset Vox Office 30",
-  "valor_maximo": 349.9,
-  "loja": "Loja Sonora",
-  "politica_nome": "Eletrônicos do dia a dia",
-  "expira_em": "2026-10-27T16:34:00+00:00",
-  "status": "ativa",
-  "automatica": false,
-  "criada_em": "2026-10-27T16:04:00+00:00"
+  "id": "6ae51223...", "solicitacao_id": "6ae5121c...", "origem": "manual", "politica_id": "6ae5121a...",
+  "valor_maximo": 51.38, "lojas": ["Mercado Exemplo", "Atacado Bom Preço"],
+  "itens": [{"id_externo": "FIXO-001", "titulo": "Arroz Branco Tipo 1 5kg", "preco": 27.9, "quantidade": 1, "loja": "Mercado Exemplo"}],
+  "status": "ativa", "expira_em": "...", "criada_em": "...", "atualizada_em": "..."
 }
 ```
 
-- `status`: `ativa` | `usada` (o pedido foi pago com ela) | `revogada` | `expirada`.
-- `expira_em`: 30 minutos depois de `criada_em` (a tela avisa "30 minutos, uso único" antes de aprovar).
-- `politica_nome`: a política que liberou a compra (`avaliacao.politica_id`), ou `null` quando não
-  há nenhuma política ativa. A tela usa na frase "porque cabia na sua política Casa".
-- `titulo` e `loja` são copiados da oferta para a lista de autorizações não precisar buscar a solicitação.
-- Depois do `201`, a solicitação passa para `status: "aprovada"` e ganha o campo
-  `autorizacao` com este mesmo objeto (`GET /solicitacoes/{id}`). Se o orquestrador gerar a
-  autorização automática sozinho logo depois do ranking, basta devolver a solicitação já como
-  `aprovada` com `autorizacao.automatica: true`: a tela mostra "Comprei ... sozinho".
+- Vale 15 minutos e é de uso único. `GET /autorizacoes` lista **só as ativas e no prazo**.
+- `DELETE /autorizacoes/{id}` revoga (`204`) e devolve a solicitação para `aguardando_aprovacao`;
+  autorização já usada responde `409`.
 
-### Erros
+## Pedido e Pix simulado
 
-| Situação | Status | Corpo |
-|---|---|---|
-| Senha errada ou ausente (oferta não automática) | 401 | `{"erro": "A senha não confere.", "detalhes": {"senha": "Senha incorreta. Confira e tente de novo."}}` |
-| A oferta não cabe nas políticas atuais | 422 | `{"erro": "Esta oferta não cabe nas suas políticas.", "detalhes": {"motivos": ["Casa: total de R$ 349,90 passa do teto de R$ 80,00"]}}` |
-| Solicitação já aprovada, cancelada ou sem resultado | 409 | `{"erro": "Esta solicitação não aceita mais aprovação: ela já foi aprovada ou cancelada."}` |
-| Solicitação ou oferta não existe | 404 | `{"erro": "Não encontrei esta oferta."}` |
-
-**Importante para o 401:** o front encerra a sessão em qualquer 401, **exceto** quando a resposta
-traz `detalhes.senha`. É assim que ele diferencia "senha errada na aprovação" (a pessoa continua
-logada e tenta de novo) de "token vencido" (volta para o login). `motivos` do 422 é uma lista de
-textos, no formato de `avaliacao.motivos`.
-
-## Autorizações: `GET /autorizacoes` e `DELETE /autorizacoes/{id}`
-
-Responsável no backend: Pessoa 2. Tela: `/autorizacoes` (`src/pages/AuthorizationsPage.tsx`).
-
-### `GET /autorizacoes` → `200`
-
-Todas as autorizações da pessoa (não só as ativas), da mais recente para a mais antiga, no mesmo
-formato do `201` da aprovação. A tela separa "Ativas agora" de "Anteriores" e mostra o status com
-`StatusBadge`.
+`POST /pedidos` com `{"autorizacao_id": "..."}` usa a autorização e responde `201`:
 
 ```json
-[
-  { "id": "6ae0cb2205554cb018a1d2e0", "solicitacao_id": "6ae0c9f105554cb018a1d2d0", "oferta_id": "6ae0c9f105554cb018a1d2d1", "titulo": "Headset Vox Office 30", "valor_maximo": 349.9, "loja": "Loja Sonora", "politica_nome": "Eletrônicos do dia a dia", "expira_em": "2026-10-27T16:34:00+00:00", "status": "ativa", "automatica": false, "criada_em": "2026-10-27T16:04:00+00:00" },
-  { "id": "6ae0b11a05554cb018a1d2b1", "solicitacao_id": "6ae0b0f105554cb018a1d2b0", "oferta_id": "6ae0b0f105554cb018a1d2b2", "titulo": "Panos de microfibra, kit com 10", "valor_maximo": 39.9, "loja": "Loja Limpa", "politica_nome": "Casa", "expira_em": "2026-10-25T14:33:00+00:00", "status": "usada", "automatica": true, "criada_em": "2026-10-25T14:03:00+00:00" }
-]
+{
+  "id": "6ae51227...", "solicitacao_id": "...", "autorizacao_id": "...", "status": "aguardando_pagamento",
+  "itens": [{"id_externo": "FIXO-001", "titulo": "Arroz Branco Tipo 1 5kg", "preco": 27.9, "quantidade": 1, "loja": "Mercado Exemplo"}],
+  "total": 51.38,
+  "pix": {"txid": "0584bf42...", "copia_e_cola": "PIX-SIMULADO-0584bf42...", "qr_code_base64": null, "expira_em": "...", "pago_em": null},
+  "historico": [{"status": "aguardando_pagamento", "em": "..."}],
+  "entrega": {"simulada": true},
+  "criado_em": "..."
+}
 ```
 
-- A API marca `expirada` quando `expira_em` passa (na leitura ou por rotina). Se ainda vier
-  `ativa` com `expira_em` no passado, a tela já mostra como expirada e não oferece revogar.
+- `status`: `aguardando_pagamento` → `pago` → `enviado` → `entregue`, ou `expirado` (Pix venceu),
+  `cancelado` e `devolucao_solicitada` → `devolvido`. Envio e entrega acontecem sozinhos depois de
+  alguns minutos e aparecem **na próxima leitura** do pedido.
+- `copia_e_cola` e `expira_em` só vêm enquanto o pedido aguarda pagamento; depois `pix` traz só `txid` e `pago_em`.
+- `reembolso: {"valor", "status": "simulado", "em"}` aparece no cancelamento depois de pago e na devolução concluída;
+  `devolucao: {"motivo"}` aparece quando a devolução é pedida.
+- `GET /pedidos` devolve o resumo: `[{"id", "status", "total", "quantidade_itens", "criado_em"}]`.
+- `POST /simulador-pix/pagamentos` com `{"txid": "..."}` simula o pagamento e devolve o pedido (`409` se venceu ou já foi pago).
+- `PATCH /pedidos/{id}` com `{"status": "cancelado"}` (de `aguardando_pagamento`, `pago` ou `enviado`) ou
+  `{"status": "devolucao_solicitada", "motivo": "3 a 300 caracteres"}` (de `entregue`, até 7 dias). Fora disso, `409`.
 
-### `DELETE /autorizacoes/{id}` → `204`
+## Chamados: `/pedidos/{id}/chamados`
 
-Revoga uma autorização **ativa**: o status vira `revogada` e ela não pode mais pagar pedido.
-O registro continua existindo (aparece no `GET` e na auditoria).
+`POST` com `{"assunto": "3 a 80 caracteres", "mensagem": "10 a 1000 caracteres"}` responde `201`:
+`{"id", "pedido_id", "assunto", "mensagem", "status": "aberto", "criado_em", "atualizado_em"}`. `GET` lista os chamados do pedido.
 
-- `404` `{"erro": "Não encontrei esta autorização."}`.
-- `409` `{"erro": "Esta autorização não está mais ativa: ela já foi usada, revogada ou expirou."}`.
+## Perfil: `GET` e `PATCH /usuarios/me` (M1, ainda não existe)
 
-## Auditoria: `GET /auditoria`
+`GET` → `{"id", "nome", "email", "data_nascimento", "endereco", "preferencias", "orcamento_mensal", "criado_em"}`,
+com `null` (ou listas vazias em `preferencias`) nos campos não preenchidos.
 
-Responsável no backend: Pessoa 2. Tela: `/auditoria` (`src/pages/AuditPage.tsx`).
-
-Trilha **só de inserção** da pessoa, da mais recente para a mais antiga:
+`PATCH` aceita qualquer subconjunto de:
 
 ```json
-[
-  {
-    "id": "6ae0cc0105554cb018a1d2f0",
-    "tipo": "autorizacao.revogada",
-    "ator": "voce",
-    "descricao": "Você revogou a autorização de Headset Vox Office 30",
-    "criado_em": "2026-10-27T16:10:00+00:00",
-    "dados": { "autorizacao_id": "6ae0cb2205554cb018a1d2e0", "valor_maximo": 349.9 }
-  },
-  {
-    "id": "6ae0cb9905554cb018a1d2e9",
-    "tipo": "politica.bloqueou",
-    "ator": "politica",
-    "descricao": "Suas políticas bloquearam 1 oferta",
-    "criado_em": "2026-10-27T16:03:30+00:00",
-    "dados": { "solicitacao_id": "6ae0c9f105554cb018a1d2d0", "motivos": ["Eletrônicos do dia a dia: total de R$ 899,00 passa do teto de R$ 500,00"] }
-  }
-]
+{
+  "nome": "Ana Souza",
+  "data_nascimento": "1999-05-20",
+  "endereco": {"cep": "01001000", "numero": "100", "complemento": "Apto 12"},
+  "preferencias": {"marcas_preferidas": ["vale verde"], "marcas_evitadas": ["brilho"]},
+  "orcamento_mensal": 800
+}
 ```
 
-| Campo | Regra |
-|---|---|
-| `tipo` | Um dos abaixo. Tipo desconhecido aparece com o ícone genérico, sem quebrar a tela |
-| `ator` | `voce`, `agente`, `politica` (decisão do validador) ou `sistema` (expiração, pagamento). Se faltar, a tela deduz pelo `tipo` |
-| `descricao` | Frase curta no passado, em primeira pessoa quando é o agente ("Ranqueei 4 ofertas", "Comprei ... sozinho") e em "Você ..." quando é a pessoa |
-| `dados` | Objeto livre com os ids e valores do passo; a tela mostra em "Ver dados registrados". Nunca inclua senha, token ou dados de cartão |
+- A API completa o endereço pelo ViaCEP (o React nunca chama o ViaCEP). CEP inexistente: `400` com
+  `{"cep": "Confira o CEP."}`; ViaCEP fora do ar: `502`.
+- `data_nascimento` libera bebidas alcoólicas para maiores de 18. Acima do `orcamento_mensal`, o agente
+  não compra sozinho e pede aprovação.
 
-Tipos que a tela já conhece (ícone próprio):
+## Auditoria: `GET /auditoria?limite=50&antes_de=<id>` (M1, ainda não existe)
 
-| `tipo` | `ator` | Quando |
-|---|---|---|
-| `solicitacao.criada` | voce | `POST /solicitacoes` |
-| `ofertas.ranqueadas` | agente | Fim do ranking com ofertas |
-| `ofertas.sem_resultado` | agente | Nada encontrado no catálogo |
-| `politica.bloqueou` | politica | Ofertas recusadas no ranking ou aprovação recusada (422) |
-| `solicitacao.cancelada` | voce | `DELETE /solicitacoes/{id}` |
-| `autorizacao.criada` | voce | Aprovação manual com senha |
-| `autorizacao.senha_incorreta` | sistema | 401 na aprovação |
-| `compra.automatica` | agente | Autorização gerada sem senha, dentro de política automática |
-| `autorizacao.revogada` | voce | `DELETE /autorizacoes/{id}` |
-| `autorizacao.expirada` | sistema | Passou de `expira_em` sem uso |
-| `autorizacao.usada` | sistema | Pedido pago com a autorização (`POST /pedidos`, Pessoa 5) |
+`{"eventos": [{"id", "tipo", "recurso": {"tipo", "id"}, "dados", "criado_em"}], "proximo": "<id> ou null"}`,
+do mais recente para o mais antigo. A tela transforma cada `tipo` numa frase (`describe` em
+`src/pages/AuditPage.tsx`); os tipos estão na seção 7 do contrato do backend. Tipo desconhecido
+aparece com o ícone genérico, sem quebrar a tela.

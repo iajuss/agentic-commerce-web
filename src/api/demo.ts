@@ -18,19 +18,18 @@ export function notFound(message: string): never {
   throw new ApiError(message, 404)
 }
 
-// Trilha de auditoria simulada: cada ação do modo demo grava um evento, como a API fará.
-export type DemoActor = 'voce' | 'agente' | 'politica' | 'sistema'
+// Trilha de auditoria simulada, no formato de GET /auditoria: cada ação do modo demo grava um
+// evento com o mesmo tipo e recurso que o backend grava (seção 7 do contrato de integração).
 export type DemoEvent = {
   id: string
   tipo: string
-  ator: DemoActor
-  descricao: string
-  criado_em: string
+  recurso: { tipo: string; id: string } | null
   dados: Record<string, unknown>
+  criado_em: string
 }
 
 export const demoEvents: DemoEvent[] = []
 
-export function recordDemoEvent(tipo: string, ator: DemoActor, descricao: string, dados: Record<string, unknown> = {}, criadoEm = nowIso()) {
-  demoEvents.push({ id: demoId(), tipo, ator, descricao, criado_em: criadoEm, dados })
+export function recordDemoEvent(tipo: string, recurso: DemoEvent['recurso'] = null, dados: Record<string, unknown> = {}) {
+  demoEvents.push({ id: demoId(), tipo, recurso, dados, criado_em: nowIso() })
 }

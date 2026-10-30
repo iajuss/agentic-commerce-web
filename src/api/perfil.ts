@@ -1,14 +1,13 @@
 import { demoMode } from './auth'
 import { ApiError, apiRequest } from './client'
-import { nowIso, wait } from './demo'
+import { nowIso, recordDemoEvent, wait } from './demo'
 
 // Contrato em docs/contrato-api.md (GET e PATCH /usuarios/me).
 
-export type RankingPriority = 'preco' | 'prazo' | 'avaliacao'
-
+// O ranking sobe as marcas preferidas e desce as evitadas. Textos em minúsculas.
 export type Preferences = {
-  prioridade: RankingPriority
-  lojas_preferidas: string[]
+  marcas_preferidas: string[]
+  marcas_evitadas: string[]
 }
 
 // O React manda só CEP, número e complemento; a API completa o resto pelo ViaCEP.
@@ -25,27 +24,34 @@ export type Address = AddressInput & {
   uf: string
 }
 
+// Campo não preenchido chega como null (ou lista vazia nas preferências).
 export type Profile = {
   id: string
   nome: string
   email: string
-  preferencias: Preferences
-  orcamento_mensal: number | null
+  // AAAA-MM-DD. Sem ela, o agente não oferece bebidas alcoólicas.
+  data_nascimento: string | null
   endereco: Address | null
-  atualizado_em: string
-}
-
-export type ProfileInput = {
-  nome: string
   preferencias: Preferences
+  // Acima dele, o agente não compra sozinho: pede a sua aprovação.
   orcamento_mensal: number | null
-  endereco: AddressInput | null
+  criado_em: string
+  atualizado_em?: string | null
 }
 
-// Chaves de "detalhes" que a API pode devolver no PATCH.
+// O PATCH aceita qualquer subconjunto destes campos; o que não vai fica como está.
+export type ProfileInput = {
+  nome?: string
+  data_nascimento?: string
+  preferencias?: Preferences
+  orcamento_mensal?: number | null
+  endereco?: AddressInput
+}
+
+// Chaves de "detalhes" que a API pode devolver no PATCH. O CEP não encontrado vem em "cep".
 export const PROFILE_FIELDS = [
-  'nome', 'preferencias.prioridade', 'preferencias.lojas_preferidas', 'orcamento_mensal',
-  'endereco.cep', 'endereco.numero', 'endereco.complemento',
+  'nome', 'data_nascimento', 'orcamento_mensal', 'preferencias.marcas_preferidas', 'preferencias.marcas_evitadas',
+  'cep', 'endereco.cep', 'endereco.numero', 'endereco.complemento',
 ] as const
 
 export function getProfile() {
@@ -73,7 +79,7 @@ export function maskCep(text: string) {
 const DEMO_CEPS: Record<string, Omit<Address, 'cep' | 'numero' | 'complemento'>> = {
   '04546042': { logradouro: 'Rua Quatá', bairro: 'Vila Olímpia', cidade: 'São Paulo', uf: 'SP' },
   '01310100': { logradouro: 'Avenida Paulista', bairro: 'Bela Vista', cidade: 'São Paulo', uf: 'SP' },
-  '20040020': { logradouro: 'Rua da Assembleia', bairro: 'Centro', cidade: 'Rio de Janeiro', uf: 'RJ' },
+  '01001000': { logradouro: 'Praça da Sé', bairro: 'Sé', cidade: 'São Paulo', uf: 'SP' },
 }
 
 function storedUser() {
@@ -93,14 +99,18 @@ function currentDemo(): Profile {
       id: 'demo',
       nome: user.nome ?? 'Pessoa',
       email: user.email ?? 'voce@exemplo.com',
-      preferencias: { prioridade: 'preco', lojas_preferidas: [] },
-      orcamento_mensal: 1200,
-      endereco: { cep: '04546-042', numero: '300', complemento: '', ...DEMO_CEPS['04546042'] },
+      data_nascimento: null,
+      preferencias: { marcas_preferidas: [], marcas_evitadas: [] },
+      orcamento_mensal: 800,
+      endereco: { cep: '04546042', numero: '300', complemento: '', ...DEMO_CEPS['04546042'] },
+      criado_em: nowIso(-60 * 24 * 3),
       atualizado_em: nowIso(-60 * 24),
     }
   }
   return demoProfile
 }
+
+const normalize = (list: string[]) => [...new Set(list.map((item) => item.trim().toLowerCase()).filter(Boolean))]
 
 const demo = {
   async get() {
@@ -110,29 +120,36 @@ const demo = {
   async update(input: ProfileInput) {
     await wait(600)
     const errors: Record<string, string> = {}
-    const nome = input.nome.trim()
+    const current = currentDemo()
+    const nome = input.nome?.trim() ?? current.nome
     if (!nome || nome.length > 80) errors.nome = 'Informe um nome de até 80 caracteres.'
-    if (input.orcamento_mensal !== null && !(input.orcamento_mensal > 0)) {
+    if (input.data_nascimento !== undefined && !(/^\d{4}-\d{2}-\d{2}$/.test(input.data_nascimento) && new Date(input.data_nascimento) < new Date())) {
+      errors.data_nascimento = 'Informe uma data no passado.'
+    }
+    if (input.orcamento_mensal !== undefined && input.orcamento_mensal !== null && !(input.orcamento_mensal > 0)) {
       errors.orcamento_mensal = 'Informe um valor maior que zero ou deixe vazio.'
     }
-    let endereco: Address | null = null
+    let endereco = current.endereco
     if (input.endereco) {
       const cep = onlyDigits(input.endereco.cep)
       const found = DEMO_CEPS[cep]
-      if (cep.length !== 8) errors['endereco.cep'] = 'Informe um CEP com 8 números.'
-      else if (!found) errors['endereco.cep'] = 'Não encontrei este CEP. Confira os números. No modo de demonstração, use 04546-042 ou 01310-100.'
+      if (!found) errors.cep = 'Confira o CEP. No modo de demonstração, use 04546-042, 01310-100 ou 01001-000.'
       if (!input.endereco.numero.trim()) errors['endereco.numero'] = 'Informe o número.'
-      if (found && !errors['endereco.numero']) endereco = { ...input.endereco, cep: maskCep(cep), ...found }
+      if (found) endereco = { ...input.endereco, cep, ...found }
     }
-    if (Object.keys(errors).length) throw new ApiError('Confira os campos destacados.', 400, errors)
+    if (Object.keys(errors).length) throw new ApiError(errors.cep ? 'CEP não encontrado.' : 'Perfil inválido.', 400, errors)
     demoProfile = {
-      ...currentDemo(),
+      ...current,
       nome,
-      preferencias: { ...input.preferencias, lojas_preferidas: [...input.preferencias.lojas_preferidas] },
-      orcamento_mensal: input.orcamento_mensal,
+      data_nascimento: input.data_nascimento ?? current.data_nascimento,
+      preferencias: input.preferencias
+        ? { marcas_preferidas: normalize(input.preferencias.marcas_preferidas), marcas_evitadas: normalize(input.preferencias.marcas_evitadas) }
+        : current.preferencias,
+      orcamento_mensal: input.orcamento_mensal === undefined ? current.orcamento_mensal : input.orcamento_mensal,
       endereco,
       atualizado_em: nowIso(),
     }
+    recordDemoEvent('perfil_atualizado', { tipo: 'usuario', id: 'demo' }, { campos: Object.keys(input) })
     return structuredClone(demoProfile)
   },
 }

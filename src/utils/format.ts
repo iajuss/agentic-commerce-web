@@ -32,6 +32,20 @@ export function atStore(store: string) {
   return /^loja\s/i.test(store) ? `na ${store}` : `na loja ${store}`
 }
 
+// "A, B e C", como se fala.
+export function joinList(items: string[]) {
+  return items.length > 1 ? `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}` : items[0] ?? ''
+}
+
+// "na loja Mercado Exemplo" ou "nas lojas Mercado Exemplo e Atacado Bom Preço".
+export function atStores(stores: string[]) {
+  return stores.length === 1 ? atStore(stores[0]) : `nas lojas ${joinList(stores)}`
+}
+
+export function plural(count: number, singular: string, pluralForm = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : pluralForm}`
+}
+
 function pad(value: number) {
   return String(value).padStart(2, '0')
 }

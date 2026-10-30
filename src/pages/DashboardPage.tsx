@@ -9,12 +9,12 @@ import { categoryLabel } from '../utils/categories'
 import { formatBRL } from '../utils/format'
 
 const journey = [
-  { number: '01', title: 'Diga o que precisa', text: 'Descreva a compra do seu jeito, com contexto e limites.' },
-  { number: '02', title: 'Compare com clareza', text: 'Veja ofertas ranqueadas e entenda cada recomendação.' },
-  { number: '03', title: 'Aprove ou automatize', text: 'Você confirma ou deixa o agente agir dentro das políticas.' },
+  { number: '01', title: 'Mande a lista', text: 'Escreva os itens como numa lista de mercado, com as quantidades.' },
+  { number: '02', title: 'Veja a cesta', text: 'Cada item com a oferta escolhida, as alternativas e o motivo.' },
+  { number: '03', title: 'Aprove ou automatize', text: 'Você aprova com a senha e paga por Pix, ou o agente compra dentro da política.' },
 ]
 
-const examples = ['Fone confortável para reuniões, até R$ 450', 'Cadeira de escritório até R$ 900']
+const examples = ['arroz 5kg, 2 leites integrais e detergente', 'café, açúcar e 3 macarrões']
 
 type MainPolicyProps = { policy?: Policy; loading: boolean; error: unknown; hasPolicies: boolean }
 
@@ -89,17 +89,17 @@ export function DashboardPage() {
       <section className="hero" aria-labelledby="nova-compra">
         <span className="hero-ring" aria-hidden="true" />
         <span className="text-label">Nova compra</span>
-        <h2 id="nova-compra">O que você precisa comprar?</h2>
+        <h2 id="nova-compra">O que vai na lista de hoje?</h2>
         <form className="composer" onSubmit={handleSubmit}>
           <Search aria-hidden="true" />
-          <label className="sr-only" htmlFor="descricao">Descreva a compra</label>
+          <label className="sr-only" htmlFor="descricao">Lista de compras</label>
           <input
             id="descricao"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder="Ex.: fone para reuniões, até R$ 450"
+            placeholder="Ex.: arroz 5kg, 2 leites e detergente"
           />
-          <button className="btn btn-primary" type="submit">Buscar ofertas <ArrowRight aria-hidden="true" /></button>
+          <button className="btn btn-primary" type="submit">Montar a cesta <ArrowRight aria-hidden="true" /></button>
         </form>
         <div className="row">
           {examples.map((example) => (
