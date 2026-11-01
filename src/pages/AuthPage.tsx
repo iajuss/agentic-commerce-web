@@ -65,7 +65,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           <p>Ele compra só dentro das regras que você define: teto por compra, categorias, lojas e quando pode agir sozinho.</p>
         </div>
         <div className="auth-example" aria-hidden="true">
-          <p className="auth-example-prompt">Um fone confortável para reuniões, até R$ 450.</p>
+          <p className="auth-example-prompt">Arroz 5kg, 2 leites integrais e detergente, até R$&nbsp;50.</p>
           <div className="auth-route">
             <span>Sua descrição</span><ArrowRight />
             <span>Ofertas explicadas</span><ArrowRight />

@@ -201,7 +201,7 @@ Status novo? Acrescente em `src/components/StatusBadge.tsx`, escolhendo o tom pe
     <div className="timeline-content">
       <div className="timeline-meta"><span className="actor">Agente</span><time dateTime="2026-10-27T14:03">hoje, 14:03</time></div>
       <p className="timeline-title">Ranqueou 3 ofertas</p>
-      <p className="timeline-text">Headset Vox Office 30 em 1º: o mais barato entre os que chegam até sexta.</p>
+      <p className="timeline-text">Arroz Branco Tipo 1 5kg em 1º: R$ 5,58/kg, frete grátis e chega em 2 dias.</p>
       <details className="timeline-details"><summary>Ver dados registrados</summary><pre>{json}</pre></details>
     </div>
   </li>
@@ -273,10 +273,10 @@ Próximo e direto, em "você". O agente fala em primeira pessoa ("encontrei", "c
 claro quem fez o quê.
 
 1. **Diga o que aconteceu e o que fazer agora** (erros).
-   Faça: "O banco recusou o cartão final 4821. Tente outro cartão ou fale com o banco."
-   Não faça: "Erro 402: falha no processamento do pagamento."
+   Faça: "O Pix de R$ 40,97 venceu às 11:08 e nada foi cobrado. Faça a lista de novo para gerar outro."
+   Não faça: "Erro 409: falha no processamento do pagamento."
 2. **Valor, loja e consequência antes do botão** (confirmações).
-   Faça: "Comprar o Headset Vox Office 30 por R$ 389,90 na Loja Sonora? O valor é cobrado agora." + botão "Aprovar compra de R$ 389,90".
+   Faça: "Comprar 4 itens por R$ 40,97 na loja Mercado Exemplo? Eu reservo esse valor agora." + botão "Aprovar compra de R$ 40,97".
    Não faça: "Tem certeza que deseja prosseguir?" + "OK".
 3. **Explique com critério e número, não com adjetivo** (explicações do agente).
    Faça: "Ficou em 1º: custa R$ 39,10 menos que a 2ª e chega um dia antes."
