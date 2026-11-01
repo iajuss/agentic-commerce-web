@@ -17,6 +17,8 @@
 .sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .sidebar-brand { display: inline-flex; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--on-dark); }
 .sidebar-brand .brand-compact { display: none; height: 30px; }
+/* A caixa do logo inclui a perna do "g", que puxa o centro para baixo: sem descer 1px, a lupa e o texto ficam acima do ícone do botão ao lado. */
+.sidebar-brand .brand-full { translate: 0 1px; }
 /* Mesma largura do item do menu recolhido e mesmo tamanho de ícone: recolhido, ele fica no eixo dos outros ícones. */
 .sidebar-top .sidebar-toggle { flex: none; width: var(--sidebar-item); font-size: 15px; }
 .sidebar-toggle:focus-visible { outline-offset: calc(var(--focus-offset) * -1); }
