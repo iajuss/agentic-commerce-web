@@ -1162,20 +1162,21 @@ Rode pela interface, de preferência com o front local apontando para a produç�
    oferta, 1 sem oferta ("guarda-chuva"), cesta com total, lojas e explicações. As ofertas de leite da marca Vale Verde
    trazem "Marca preferida" na explicação. Em produção, o catálogo `combinado` pode trazer ofertas da DummyJSON; os
    números variam, mas o formato é o mesmo.
-5. Aprovar com a senha errada → mensagem embaixo do campo, **continua logado**. Senha certa → pedido criado → tela do
-   pedido com o Pix.
+5. Aprovar com a senha errada → mensagem embaixo do campo, **continua logado**. Senha certa → "Compra aprovada", com
+   a autorização e o botão "Gerar Pix" → pedido criado → tela do pedido com o Pix.
 6. Simular o pagamento → `pago`. Atualizar depois de cerca de 2 minutos → `enviado`; depois de cerca de 5 minutos →
    `entregue`.
 7. Abrir um chamado. Pedir devolução com motivo → `devolucao_solicitada`; depois de cerca de 5 minutos → `devolvido`
    com reembolso.
-8. Nova lista, aprovar, cancelar o pedido antes de pagar → `cancelado`, e a solicitação aparece `expirada`.
+8. Nova lista, aprovar, gerar o Pix, cancelar o pedido antes de pagar → `cancelado`, e a solicitação aparece `expirada`.
 9. Nova lista, aprovar, revogar a autorização em Autorizações → a solicitação volta a `aguardando_aprovacao` →
    cancelar → some do histórico (404 se abrir pelo link).
 10. Mudar o teto da política para 30 e pedir "arroz 5kg e café" → se o total da cesta passar de R$ 30,00:
     `permitida: false`, motivos visíveis, aprovação não oferecida (ou, se tentada, `422` com os motivos). Se a
     DummyJSON trouxer ofertas baratas o bastante, aumente a lista até passar do teto.
 11. Criar uma política **automática** com teto de 100 e excluir a manual → pedir "papel higiênico e 2 macarrões" →
-    vai direto ao pedido aguardando Pix, sem senha.
+    "Comprei dentro da sua política", sem senha, com o Pix já gerado; o link "pague ou cancele o pedido" leva ao
+    pedido aguardando Pix.
 12. Auditoria: os eventos aparecem com frases legíveis, e "Carregar mais" funciona (teste com `limite` pequeno).
 13. Abrir a página no celular (375 px), no teclado e no modo escuro (regra do `AGENTS.md`).
 
