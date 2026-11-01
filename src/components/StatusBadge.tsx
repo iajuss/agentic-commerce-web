@@ -2,6 +2,7 @@ import {
   Ban,
   CheckCheck,
   CircleCheck,
+  CircleDashed,
   CirclePause,
   CircleX,
   Clock,
@@ -9,7 +10,6 @@ import {
   Hand,
   KeyRound,
   ListOrdered,
-  LoaderCircle,
   PackageCheck,
   SearchX,
   ShieldCheck,
@@ -42,11 +42,11 @@ const badges = {
     recomendada: { label: 'Recomendada', tone: 'accent', icon: Sparkle },
   },
   solicitacao: {
-    processando: { label: 'Buscando ofertas', tone: 'info', icon: LoaderCircle },
-    com_resultado: { label: 'Esperando você', tone: 'attention', icon: ListOrdered },
+    aguardando_aprovacao: { label: 'Esperando você', tone: 'attention', icon: ListOrdered },
     sem_resultado: { label: 'Sem resultado', tone: 'neutral', icon: SearchX },
     aprovada: { label: 'Aprovada', tone: 'success', icon: CircleCheck },
-    cancelada: { label: 'Cancelada', tone: 'neutral', icon: CircleX },
+    concluida: { label: 'Concluída', tone: 'info', icon: CheckCheck },
+    expirada: { label: 'Expirada', tone: 'neutral', icon: Clock },
   },
   autorizacao: {
     ativa: { label: 'Ativa', tone: 'success', icon: KeyRound },
@@ -66,8 +66,14 @@ const badges = {
 type Badges = typeof badges
 export type StatusKind = keyof Badges
 
+// Status que a tela ainda não conhece (a API mudou antes do front) vira um selo neutro, sem derrubar a tela.
+function badgeFor(kind: StatusKind, status: PropertyKey): Badge {
+  const known = (badges[kind] as Record<PropertyKey, Badge | undefined>)[status]
+  return known ?? { label: String(status).replace(/_/g, ' '), tone: 'neutral', icon: CircleDashed }
+}
+
 export function StatusBadge<K extends StatusKind>({ kind, status }: { kind: K; status: keyof Badges[K] }) {
-  const { label, tone, icon: Icon } = badges[kind][status] as Badge
+  const { label, tone, icon: Icon } = badgeFor(kind, status)
   return (
     <span className={tone === 'neutral' ? 'badge' : `badge badge-${tone}`}>
       <Icon aria-hidden="true" />

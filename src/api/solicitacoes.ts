@@ -1,58 +1,92 @@
 import { demoMode } from './auth'
 import { ApiError, apiRequest } from './client'
 import { demoId, notFound, nowIso, recordDemoEvent, wait } from './demo'
-import type { Authorization } from './autorizacoes'
 import { demoPoliciesSnapshot, type Policy } from './politicas'
 
-// Contrato em docs/contrato-api.md (POST, GET e DELETE /solicitacoes).
+// Contrato em docs/contrato-api.md, que resume o contrato de integração do backend (seções 4, 5 e 10).
 
-export type RequestStatus = 'processando' | 'com_resultado' | 'sem_resultado' | 'aprovada' | 'cancelada'
+export type RequestStatus = 'aguardando_aprovacao' | 'sem_resultado' | 'aprovada' | 'concluida' | 'expirada'
 
-// Um critério do ranking, para a barra do card: nota de 0 a 1 e o valor já formatado.
-export type Criterion = { nome: string; nota: number; valor: string }
-
+// Oferta do catálogo já ranqueada. Campos que a fonte não informa chegam como null.
 export type Offer = {
-  id: string
+  id_externo: string
+  // No MVP: "fixo" (catálogo local) ou "dummyjson" (catálogo externo).
+  fonte: string
   titulo: string
+  marca?: string | null
   preco: number
-  frete: number
-  loja: string
-  categoria: string
-  imagem: string | null
-  posicao: number
-  explicacao: string
-  dentro_da_politica: boolean
-  motivos_recusa: string[]
-  compra_automatica: boolean
+  // null: a loja não informou o frete (a explicação diz "Frete estimado").
+  frete: number | null
+  frete_gratis?: boolean
   prazo_dias: number | null
+  categoria: string
+  categorias_caminho: string[]
+  loja: string
   avaliacao: number | null
-  criterios: Criterion[]
+  // Quantidade disponível (aproximada quando a fonte só informa faixas).
+  estoque?: number | null
+  preco_por_unidade?: number | null
+  unidade?: string | null
+  link?: string | null
+  imagem?: string | null
+  // Frases curtas, com números, que explicam a posição da oferta no ranking.
+  explicacao: string[]
 }
+
+export type RequestItem = {
+  descricao: string
+  // Embalagens da recomendada a comprar, a mesma que entra no subtotal ("2 kg de feijão" com o pacote de 1 kg vira 2).
+  quantidade: number
+  status: 'com_oferta' | 'sem_oferta'
+  recomendada: Offer | null
+  alternativas: Offer[]
+  // Quantas ofertas as políticas tiraram da lista deste item.
+  descartadas: number
+  explicacao: string[]
+}
+
+export type Basket = { subtotal: number; frete: number; total: number; lojas: string[] }
+
+// Avaliação da cesta inteira pelas políticas: é ela que decide se dá para aprovar.
+export type Evaluation = {
+  permitida: boolean
+  compra_automatica: boolean
+  politica_id: string | null
+  motivos: string[]
+}
+
+// Preenchido quando o agente comprou sozinho: a autorização e o pedido com o Pix já criados.
+export type AutoPurchase = { autorizacao_id: string; pedido_id: string }
 
 export type PurchaseRequest = {
   id: string
-  intencao: string
+  // null quando a solicitação veio com os itens já separados.
+  texto: string | null
+  itens: RequestItem[]
+  cesta: Basket
+  avaliacao: Evaluation
   status: RequestStatus
-  ofertas: Offer[]
-  // A autorização que a aprovou (ou que o agente gerou sozinho); null antes da aprovação.
-  autorizacao: Authorization | null
+  compra_automatica: AutoPurchase | null
   criada_em: string
   atualizada_em: string
 }
 
-// Item do histórico (GET /solicitacoes): sem as ofertas, que vêm no GET de cada uma.
-export type RequestSummary = Pick<PurchaseRequest, 'id' | 'intencao' | 'status' | 'criada_em'> & {
-  quantidade_ofertas: number
+// Item do histórico (GET /solicitacoes).
+export type RequestSummary = {
+  id: string
+  texto: string | null
+  itens: string[]
+  status: RequestStatus
+  total: number
+  criada_em: string
 }
 
-export const REQUEST_FIELDS = ['intencao'] as const
+export const REQUEST_FIELDS = ['texto'] as const
+export const REQUEST_MAX_LENGTH = 500
 
-// Enquanto a API busca e ranqueia, a tela pergunta de novo a cada 2 segundos.
-export const POLL_INTERVAL_MS = 2000
-
-export function createRequest(intencao: string) {
-  if (demoMode) return demo.create(intencao)
-  return apiRequest<PurchaseRequest>('/solicitacoes', { method: 'POST', body: { intencao } })
+export function createRequest(texto: string) {
+  if (demoMode) return demo.create(texto)
+  return apiRequest<PurchaseRequest>('/solicitacoes', { method: 'POST', body: { texto } })
 }
 
 export function listRequests() {
@@ -65,217 +99,203 @@ export function getRequest(id: string) {
   return apiRequest<PurchaseRequest>(`/solicitacoes/${id}`)
 }
 
+// O DELETE remove a solicitação: ela sai do histórico.
 export function cancelRequest(id: string) {
   if (demoMode) return demo.cancel(id)
   return apiRequest<void>(`/solicitacoes/${id}`, { method: 'DELETE' })
 }
 
-// Só faz sentido cancelar o que ainda pode virar compra.
+// A API só remove antes da aprovação.
 export function canCancel(status: RequestStatus) {
-  return status === 'processando' || status === 'com_resultado'
+  return status === 'aguardando_aprovacao' || status === 'sem_resultado'
 }
 
-export function offerTotal(offer: Pick<Offer, 'preco' | 'frete'>) {
-  return offer.preco + offer.frete
+export function canApprove(request: Pick<PurchaseRequest, 'status' | 'avaliacao'>) {
+  return request.status === 'aguardando_aprovacao' && request.avaliacao.permitida
 }
 
-// Dentro da política primeiro, na ordem do ranking; as recusadas vão para o fim.
-export function sortOffers(offers: Offer[]) {
-  return [...offers].sort((a, b) => Number(b.dentro_da_politica) - Number(a.dentro_da_politica) || a.posicao - b.posicao)
+// O que a pessoa escreveu; sem texto, a lista dos itens.
+export function requestTitle(request: { texto: string | null; itens: (RequestItem | string)[] }) {
+  return request.texto ?? request.itens.map((item) => (typeof item === 'string' ? item : item.descricao)).join(', ')
 }
 
-// ---- Modo de demonstração: catálogo fixo, ranking e políticas como no backend ----------
+export function itemTotal(item: Pick<RequestItem, 'quantidade' | 'recomendada'>) {
+  return (item.recomendada?.preco ?? 0) * item.quantidade
+}
 
-type CatalogItem = Pick<Offer, 'titulo' | 'preco' | 'frete' | 'loja' | 'categoria' | 'prazo_dias' | 'avaliacao'> & { palavras: string[] }
+// ---- Modo de demonstração: catálogo fixo de supermercado e políticas como no backend ------
+
+type CatalogItem = Omit<Offer, 'explicacao' | 'fonte' | 'id_externo'> & { palavras: string[] }
 
 const CATALOG: CatalogItem[] = [
-  { titulo: 'Headset Vox Office 30', preco: 349.9, frete: 0, loja: 'Loja Sonora', categoria: 'mobile-accessories', prazo_dias: 2, avaliacao: 4.6, palavras: ['fone', 'headset', 'reuni', 'audio', 'áudio'] },
-  { titulo: 'Fone Aria Pro sem fio', preco: 389, frete: 19.9, loja: 'Mercado Tech', categoria: 'mobile-accessories', prazo_dias: 3, avaliacao: 4.8, palavras: ['fone', 'headset', 'reuni', 'sem fio'] },
-  { titulo: 'Headset Nimbus com cancelamento de ruído', preco: 429.9, frete: 0, loja: 'Casa do Som', categoria: 'mobile-accessories', prazo_dias: 5, avaliacao: 4.4, palavras: ['fone', 'headset', 'reuni', 'ruído', 'ruido'] },
-  { titulo: 'Fone Studio Max', preco: 899, frete: 0, loja: 'Mercado Tech', categoria: 'mobile-accessories', prazo_dias: 2, avaliacao: 4.9, palavras: ['fone', 'headset', 'audio'] },
-  { titulo: 'Cadeira Office Basic', preco: 499, frete: 0, loja: 'Casa & Escritório', categoria: 'furniture', prazo_dias: 4, avaliacao: 4.1, palavras: ['cadeira', 'escritório', 'escritorio'] },
-  { titulo: 'Cadeira Ergo Flex', preco: 749, frete: 49.9, loja: 'Móveis Já', categoria: 'furniture', prazo_dias: 7, avaliacao: 4.5, palavras: ['cadeira', 'escritório', 'escritorio', 'ergonômica'] },
-  { titulo: 'Panos de microfibra, kit com 10', preco: 39.9, frete: 0, loja: 'Loja Limpa', categoria: 'kitchen-accessories', prazo_dias: 1, avaliacao: 4.7, palavras: ['pano', 'microfibra', 'limpeza'] },
-  { titulo: 'Panos multiuso, 5 unidades', preco: 24.9, frete: 9.9, loja: 'Mercado da Casa', categoria: 'kitchen-accessories', prazo_dias: 3, avaliacao: 4.2, palavras: ['pano', 'limpeza', 'multiuso'] },
-  { titulo: 'Celular Lumen A54 128 GB', preco: 1899, frete: 0, loja: 'Mercado Tech', categoria: 'smartphones', prazo_dias: 2, avaliacao: 4.6, palavras: ['celular', 'smartphone'] },
+  { titulo: 'Arroz Branco Tipo 1 5kg', marca: 'Grão Dourado', preco: 27.9, frete: 0, prazo_dias: 2, avaliacao: 4.7, categoria: 'Arroz', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Arroz'], loja: 'Mercado Exemplo', preco_por_unidade: 5.58, unidade: 'kg', palavras: ['arroz'] },
+  { titulo: 'Arroz Parboilizado 5kg', marca: 'Sabor do Campo', preco: 24.9, frete: 9.9, prazo_dias: 4, avaliacao: 4.3, categoria: 'Arroz', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Arroz'], loja: 'Atacado Bom Preço', preco_por_unidade: 4.98, unidade: 'kg', palavras: ['arroz'] },
+  { titulo: 'Feijão Carioca Tipo 1 1kg', marca: 'Sabor do Campo', preco: 8.99, frete: 0, prazo_dias: 2, avaliacao: 4.6, categoria: 'Feijão', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Feijão'], loja: 'Mercado Exemplo', palavras: ['feijao'] },
+  { titulo: 'Feijão Preto Tipo 1 1kg', marca: 'Grão Dourado', preco: 9.49, frete: 0, prazo_dias: 2, avaliacao: 4.4, categoria: 'Feijão', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Feijão'], loja: 'Mercado Exemplo', palavras: ['feijao'] },
+  { titulo: 'Leite Integral UHT 1L', marca: 'Vale Verde', preco: 5.29, frete: 0, prazo_dias: 1, avaliacao: 4.8, categoria: 'Leite', categorias_caminho: ['Alimentos e Bebidas', 'Laticínios', 'Leite'], loja: 'Mercado Exemplo', preco_por_unidade: 5.29, unidade: 'l', palavras: ['leite'] },
+  { titulo: 'Leite Integral UHT 1L', marca: 'Fazenda Feliz', preco: 4.99, frete: 7.9, prazo_dias: 3, avaliacao: 4.1, categoria: 'Leite', categorias_caminho: ['Alimentos e Bebidas', 'Laticínios', 'Leite'], loja: 'Super Econômico', preco_por_unidade: 4.99, unidade: 'l', palavras: ['leite'] },
+  { titulo: 'Café Torrado e Moído Tradicional 500g', marca: 'Bom Dia', preco: 19.9, frete: 0, prazo_dias: 2, avaliacao: 4.7, categoria: 'Café', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Café'], loja: 'Mercado Exemplo', palavras: ['cafe'] },
+  { titulo: 'Café Torrado e Moído Extraforte 500g', marca: 'Serra Alta', preco: 17.5, frete: 9.9, prazo_dias: 4, avaliacao: 4.4, categoria: 'Café', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Café'], loja: 'Atacado Bom Preço', palavras: ['cafe'] },
+  { titulo: 'Açúcar Refinado 1kg', marca: 'Doce Vida', preco: 4.99, frete: 0, prazo_dias: 2, avaliacao: 4.6, categoria: 'Açúcar', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Açúcar'], loja: 'Mercado Exemplo', palavras: ['acucar'] },
+  { titulo: 'Macarrão Espaguete 500g', marca: 'Nonna', preco: 4.29, frete: 0, prazo_dias: 2, avaliacao: 4.5, categoria: 'Massas', categorias_caminho: ['Alimentos e Bebidas', 'Mercearia', 'Massas'], loja: 'Mercado Exemplo', palavras: ['macarrao', 'massa', 'espaguete'] },
+  { titulo: 'Detergente Líquido Neutro 500ml', marca: 'Limpex', preco: 2.49, frete: 0, prazo_dias: 2, avaliacao: 4.6, categoria: 'Detergente', categorias_caminho: ['Casa e Limpeza', 'Limpeza', 'Detergente'], loja: 'Mercado Exemplo', palavras: ['detergente'] },
+  { titulo: 'Detergente Líquido Limão 500ml', marca: 'Brilho', preco: 2.19, frete: 7.9, prazo_dias: 3, avaliacao: 4.2, categoria: 'Detergente', categorias_caminho: ['Casa e Limpeza', 'Limpeza', 'Detergente'], loja: 'Super Econômico', palavras: ['detergente'] },
+  { titulo: 'Sabão em Pó Multiação 1,6kg', marca: 'Brilho', preco: 21.9, frete: 0, prazo_dias: 2, avaliacao: 4.5, categoria: 'Sabão em Pó', categorias_caminho: ['Casa e Limpeza', 'Lavanderia', 'Sabão em Pó'], loja: 'Mercado Exemplo', palavras: ['sabao'] },
+  { titulo: 'Papel Higiênico Folha Dupla 12 rolos', marca: 'Suave', preco: 19.9, frete: 0, prazo_dias: 2, avaliacao: 4.6, categoria: 'Papel Higiênico', categorias_caminho: ['Higiene e Cuidado Pessoal', 'Papel Higiênico'], loja: 'Mercado Exemplo', palavras: ['papel'] },
 ]
 
-const brl = (value: number) => `R$ ${value.toFixed(2).replace('.', ',')}`
-const ordinal = (position: number) => `${position}º`
-// "a 2ª": a comparação é com outra oferta (feminino).
-const ordinalOffer = (position: number) => `${position}ª`
-const days = (value: number) => `${value} ${value === 1 ? 'dia' : 'dias'}`
+// Mesma comparação do backend: sem maiúsculas, sem acentos e sem espaços nas pontas.
+export function comparable(text: string) {
+  return text.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
 
-// Mesmas regras de app/politicas/regras.py: basta uma política ativa aceitar.
-function evaluate(item: Pick<CatalogItem, 'preco' | 'frete' | 'categoria' | 'loja'>, policies: Policy[]) {
+const brl = (value: number) => `R$ ${value.toFixed(2).replace('.', ',')}`
+const round = (value: number) => Math.round(value * 100) / 100
+
+// "arroz 5kg, 2 leites integrais e detergente" vira arroz 5kg (1), leites integrais (2) e detergente (1).
+function interpret(texto: string) {
+  return texto
+    .split(/,|;|\n|\s+e\s+/i)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const match = part.match(/^(\d{1,2})\s+(.+)$/)
+      return match ? { descricao: match[2], quantidade: Math.max(1, Number(match[1])) } : { descricao: part, quantidade: 1 }
+    })
+}
+
+function offersFor(descricao: string): Offer[] {
+  const words = comparable(descricao)
+  const found = CATALOG
+    .filter((item) => item.palavras.some((word) => words.includes(word)))
+    .sort((a, b) => a.preco + (a.frete ?? 0) - (b.preco + (b.frete ?? 0)))
+  return found.map(({ palavras: _words, ...item }, index) => {
+    void _words
+    const explanation = [index === 0 && found.length > 1 ? `Menor preço com frete entre ${found.length} ofertas` : `Preço: ${brl(item.preco)}`]
+    explanation.push(item.frete ? `Frete de ${brl(item.frete)}` : 'Frete grátis')
+    if (item.prazo_dias !== null) explanation.push(`Entrega estimada em ${item.prazo_dias} ${item.prazo_dias === 1 ? 'dia' : 'dias'}`)
+    if (item.avaliacao !== null) explanation.push(`Avaliação ${String(item.avaliacao).replace('.', ',')}`)
+    return { ...item, fonte: 'demo', id_externo: demoId(), frete_gratis: !item.frete, explicacao: explanation }
+  })
+}
+
+// Mesmas regras de app/politicas/regras.py (avaliar_cesta): uma mesma política ativa precisa
+// aceitar todos os itens e o total; se mais de uma aceita, vale a que dá mais autonomia.
+function evaluate(items: RequestItem[], total: number, policies: Policy[]): Evaluation {
+  const offers = items.flatMap((item) => (item.recomendada ? [item.recomendada] : []))
+  if (!offers.length) return { permitida: false, compra_automatica: false, politica_id: null, motivos: ['Nenhum item da lista tem oferta disponível'] }
   const active = policies.filter((policy) => policy.ativa)
-  if (!active.length) return { allowed: true, automatic: false, reasons: [] as string[], policyName: null as string | null }
+  if (!active.length) return { permitida: true, compra_automatica: false, politica_id: null, motivos: [] }
+
   const reasons: string[] = []
   const accepted: Policy[] = []
   for (const policy of active) {
     const problems: string[] = []
-    const total = item.preco + item.frete
     if (total > policy.teto_por_compra) problems.push(`total de ${brl(total)} passa do teto de ${brl(policy.teto_por_compra)}`)
-    if (policy.categorias.length && !policy.categorias.includes(item.categoria)) problems.push(`categoria '${item.categoria}' não permitida`)
-    if (policy.lojas.length && !policy.lojas.includes(item.loja.toLowerCase())) problems.push(`loja '${item.loja}' não permitida`)
-    if (problems.length) reasons.push(...problems.map((problem) => `${policy.nome}: ${problem}`))
+    const categories = policy.categorias.map(comparable)
+    const stores = policy.lojas.map(comparable)
+    for (const offer of offers) {
+      if (categories.length && !offer.categorias_caminho.some((category) => categories.includes(comparable(category)))) {
+        problems.push(`categoria '${offer.categoria}' não permitida`)
+      }
+      if (stores.length && !stores.includes(comparable(offer.loja))) problems.push(`loja '${offer.loja}' não permitida`)
+    }
+    if (problems.length) reasons.push(...[...new Set(problems)].map((problem) => `${policy.nome}: ${problem}`))
     else accepted.push(policy)
   }
-  if (!accepted.length) return { allowed: false, automatic: false, reasons, policyName: null }
-  // Se mais de uma aceita, vale a que dá mais autonomia (como no backend).
+  if (!accepted.length) return { permitida: false, compra_automatica: false, politica_id: null, motivos: reasons }
   const chosen = accepted.find((policy) => policy.nivel_autonomia === 'automatica') ?? accepted[0]
-  return { allowed: true, automatic: chosen.nivel_autonomia === 'automatica', reasons: [], policyName: chosen.nome }
+  return { permitida: true, compra_automatica: chosen.nivel_autonomia === 'automatica', politica_id: chosen.id, motivos: [] }
 }
 
-function compare(offer: CatalogItem, other: CatalogItem, otherPosition: number) {
-  const diff = offer.preco + offer.frete - (other.preco + other.frete)
-  const parts = [diff <= 0 ? `custa ${brl(-diff)} menos que a ${ordinalOffer(otherPosition)}` : `custa ${brl(diff)} a mais que a ${ordinalOffer(otherPosition)}`]
-  const dayDiff = (offer.prazo_dias ?? 0) - (other.prazo_dias ?? 0)
-  if (dayDiff < 0) parts.push(`chega ${days(-dayDiff)} antes`)
-  else if (dayDiff > 0) parts.push(`chega ${days(dayDiff)} depois`)
-  else parts.push('chega no mesmo dia')
-  return parts.join(' e ')
-}
-
-function rank(intencao: string): Offer[] {
-  const text = intencao.toLowerCase()
-  const found = CATALOG.filter((item) => item.palavras.some((word) => text.includes(word)))
-  if (!found.length) return []
-
-  const totals = found.map((item) => item.preco + item.frete)
-  const [minTotal, maxTotal] = [Math.min(...totals), Math.max(...totals)]
-  const deadlines = found.map((item) => item.prazo_dias ?? 0)
-  const [minDays, maxDays] = [Math.min(...deadlines), Math.max(...deadlines)]
-  const spread = (value: number, min: number, max: number) => (max === min ? 1 : 1 - (value - min) / (max - min))
-  const policies = demoPoliciesSnapshot()
-
-  const scored = found.map((item) => {
-    const price = spread(item.preco + item.frete, minTotal, maxTotal)
-    const deadline = spread(item.prazo_dias ?? 0, minDays, maxDays)
-    const rating = (item.avaliacao ?? 0) / 5
-    return { item, price, deadline, rating, score: price * 0.6 + deadline * 0.2 + rating * 0.2, check: evaluate(item, policies) }
-  })
-  const ordered = [...scored.filter((entry) => entry.check.allowed).sort((a, b) => b.score - a.score), ...scored.filter((entry) => !entry.check.allowed).sort((a, b) => b.score - a.score)]
-  const inside = ordered.filter((entry) => entry.check.allowed)
-
-  return ordered.map((entry, index) => {
-    const { item } = entry
-    const position = index + 1
-    let explanation: string
-    if (!entry.check.allowed) {
-      explanation = 'Fica fora das suas políticas, então não posso comprar. Veja o motivo abaixo.'
-    } else if (inside.length === 1) {
-      explanation = `Ficou em 1º: é a única que cabe nas suas políticas. Total de ${brl(item.preco + item.frete)}, chega em ${days(item.prazo_dias ?? 0)}.`
-    } else {
-      const reference = position === 1 ? inside[1].item : inside[0].item
-      explanation = `Ficou em ${ordinal(position)}: ${compare(item, reference, position === 1 ? 2 : 1)}.`
-    }
-    const { palavras: _words, ...offer } = item
-    void _words
+function build(texto: string): Omit<PurchaseRequest, 'id' | 'criada_em' | 'atualizada_em'> {
+  const items: RequestItem[] = interpret(texto).map(({ descricao, quantidade }) => {
+    const [recomendada = null, ...alternativas] = offersFor(descricao)
+    const count = alternativas.length + 1
     return {
-      ...offer,
-      id: demoId(),
-      imagem: null,
-      posicao: position,
-      explicacao: explanation,
-      dentro_da_politica: entry.check.allowed,
-      motivos_recusa: entry.check.reasons,
-      compra_automatica: entry.check.automatic,
-      criterios: [
-        { nome: 'Preço total', nota: entry.price, valor: brl(item.preco + item.frete) },
-        { nome: 'Prazo', nota: entry.deadline, valor: days(item.prazo_dias ?? 0) },
-        { nome: 'Avaliação', nota: entry.rating, valor: `${String(item.avaliacao).replace('.', ',')} de 5` },
-      ],
+      descricao,
+      quantidade,
+      status: recomendada ? 'com_oferta' : 'sem_oferta',
+      recomendada,
+      alternativas: alternativas.slice(0, 4),
+      descartadas: 0,
+      explicacao: [recomendada ? `${count} ${count === 1 ? 'oferta encontrada' : 'ofertas encontradas'}` : 'Nenhuma oferta encontrada para este item'],
     }
   })
+  const chosen = items.filter((item) => item.recomendada)
+  const subtotal = round(chosen.reduce((sum, item) => sum + itemTotal(item), 0))
+  // O frete é cobrado uma vez por loja: vale o maior frete entre os itens daquela loja.
+  const freightByStore = new Map<string, number>()
+  for (const item of chosen) {
+    const offer = item.recomendada as Offer
+    freightByStore.set(offer.loja, Math.max(freightByStore.get(offer.loja) ?? 0, offer.frete ?? 0))
+  }
+  const frete = round([...freightByStore.values()].reduce((sum, value) => sum + value, 0))
+  const total = round(subtotal + frete)
+  return {
+    texto,
+    itens: items,
+    cesta: { subtotal, frete, total, lojas: [...freightByStore.keys()] },
+    avaliacao: evaluate(items, total, demoPoliciesSnapshot()),
+    status: chosen.length ? 'aguardando_aprovacao' : 'sem_resultado',
+    compra_automatica: null,
+  }
 }
 
-type DemoRequest = PurchaseRequest & { readyAt: number }
+const demoRequests: PurchaseRequest[] = []
 
-const demoRequests: DemoRequest[] = []
+// Gancho da compra automática no modo demo, registrado por autorizacoes.ts (como o M3 faz no backend).
+export const demoHooks: { autoPurchase?: (request: PurchaseRequest) => AutoPurchase | null } = {}
 
-function seed(intencao: string, status: RequestStatus, minutesAgo: number) {
-  const createdAt = nowIso(-minutesAgo)
-  const offers = status === 'sem_resultado' ? [] : rank(intencao)
-  demoRequests.push({ id: demoId(), intencao, status, ofertas: offers, autorizacao: null, criada_em: createdAt, atualizada_em: createdAt, readyAt: 0 })
-  recordDemoEvent('solicitacao.criada', 'voce', `Você pediu: "${intencao}"`, { status }, createdAt)
-  recordDemoEvent(offers.length ? 'ofertas.ranqueadas' : 'ofertas.sem_resultado', 'agente',
-    offers.length ? `Ranqueei ${offers.length} ofertas` : 'Não encontrei ofertas', { quantidade: offers.length }, nowIso(-minutesAgo + 1))
-  if (status === 'cancelada') recordDemoEvent('solicitacao.cancelada', 'voce', 'Você cancelou a solicitação', { intencao }, nowIso(-minutesAgo + 30))
+export function demoFindRequest(id: string) {
+  return demoRequests.find((item) => item.id === id) ?? notFound('Solicitação não encontrada.')
 }
 
-seed('Guarda-chuva de golfe com capa térmica', 'sem_resultado', 60 * 72)
-seed('Cadeira de escritório até R$ 900', 'cancelada', 60 * 26)
-
-function settle(request: DemoRequest) {
-  if (request.status !== 'processando' || Date.now() < request.readyAt) return
-  request.ofertas = rank(request.intencao)
-  request.status = request.ofertas.length ? 'com_resultado' : 'sem_resultado'
+// Troca o status só se ele ainda for o esperado, como o find_one_and_update do backend.
+export function demoSetRequestStatus(id: string, from: RequestStatus, to: RequestStatus) {
+  const request = demoRequests.find((item) => item.id === id)
+  if (!request || request.status !== from) return false
+  request.status = to
   request.atualizada_em = nowIso()
-  const outside = request.ofertas.filter((offer) => !offer.dentro_da_politica).length
-  recordDemoEvent(request.ofertas.length ? 'ofertas.ranqueadas' : 'ofertas.sem_resultado', 'agente',
-    request.ofertas.length ? `Ranqueei ${request.ofertas.length} ofertas` : 'Não encontrei ofertas',
-    { solicitacao_id: request.id, quantidade: request.ofertas.length, fora_da_politica: outside })
-  if (outside) recordDemoEvent('politica.bloqueou', 'politica', `Suas políticas bloquearam ${outside} ${outside === 1 ? 'oferta' : 'ofertas'}`, { solicitacao_id: request.id })
-}
-
-function findRequest(id: string) {
-  const request = demoRequests.find((item) => item.id === id) ?? notFound('Não encontrei esta solicitação.')
-  settle(request)
-  return request
-}
-
-function publicRequest({ readyAt: _ready, ...request }: DemoRequest): PurchaseRequest {
-  void _ready
-  return structuredClone(request)
-}
-
-// A aprovação confere de novo com as políticas de agora: elas podem ter mudado depois do ranking.
-export function demoEvaluate(offer: Offer) {
-  return evaluate(offer, demoPoliciesSnapshot())
-}
-
-export function demoMarkApproved(id: string, authorization: Authorization) {
-  const request = findRequest(id)
-  request.status = 'aprovada'
-  request.autorizacao = authorization
-  request.atualizada_em = nowIso()
-}
-
-export function demoFindOffer(requestId: string, offerId: string) {
-  const request = findRequest(requestId)
-  return { request: publicRequest(request), offer: request.ofertas.find((offer) => offer.id === offerId) }
+  return true
 }
 
 const demo = {
-  async create(intencao: string) {
-    await wait()
-    const text = intencao.trim()
-    if (text.length < 3) throw new ApiError('Descreva o que você precisa.', 400, { intencao: 'Escreva pelo menos 3 letras.' })
-    if (text.length > 500) throw new ApiError('Descreva o que você precisa.', 400, { intencao: 'Use no máximo 500 caracteres.' })
+  async create(texto: string) {
+    await wait(700)
+    const text = texto.trim()
+    if (text.length < 3 || text.length > REQUEST_MAX_LENGTH) {
+      throw new ApiError('Solicitação inválida.', 400, { texto: `Escreva a lista com 3 a ${REQUEST_MAX_LENGTH} caracteres.` })
+    }
     const now = nowIso()
-    const request: DemoRequest = { id: demoId(), intencao: text, status: 'processando', ofertas: [], autorizacao: null, criada_em: now, atualizada_em: now, readyAt: Date.now() + 1800 }
+    const request: PurchaseRequest = { ...build(text), id: demoId(), criada_em: now, atualizada_em: now }
     demoRequests.push(request)
-    recordDemoEvent('solicitacao.criada', 'voce', `Você pediu: "${text}"`, { solicitacao_id: request.id })
-    return publicRequest(request)
+    recordDemoEvent('solicitacao_criada', { tipo: 'solicitacao', id: request.id }, { itens: request.itens.length, status: request.status })
+
+    const { avaliacao } = request
+    const allFound = request.itens.every((item) => item.status === 'com_oferta')
+    if (request.status === 'aguardando_aprovacao' && avaliacao.permitida && avaliacao.compra_automatica && allFound && demoHooks.autoPurchase) {
+      const result = demoHooks.autoPurchase(request)
+      request.compra_automatica = result
+      if (!result) avaliacao.motivos.push('Não foi possível concluir a compra automática; aprove manualmente.')
+    }
+    return structuredClone(request)
   },
   async list(): Promise<RequestSummary[]> {
     await wait()
-    return demoRequests
-      .map((request) => { settle(request); return request })
+    return [...demoRequests]
       .sort((a, b) => b.criada_em.localeCompare(a.criada_em))
-      .map(({ id, intencao, status, criada_em, ofertas }) => ({ id, intencao, status, criada_em, quantidade_ofertas: ofertas.length }))
+      .map(({ id, texto, itens, status, cesta, criada_em }) => ({ id, texto, itens: itens.map((item) => item.descricao), status, total: cesta.total, criada_em }))
   },
   async get(id: string) {
     await wait(250)
-    return publicRequest(findRequest(id))
+    return structuredClone(demoFindRequest(id))
   },
   async cancel(id: string) {
     await wait()
-    const request = findRequest(id)
-    if (!canCancel(request.status)) throw new ApiError('Esta solicitação não pode mais ser cancelada: ela já foi aprovada, cancelada ou terminou sem ofertas.', 409)
-    request.status = 'cancelada'
-    request.atualizada_em = nowIso()
-    recordDemoEvent('solicitacao.cancelada', 'voce', 'Você cancelou a solicitação', { solicitacao_id: id, intencao: request.intencao })
+    const request = demoFindRequest(id)
+    if (!canCancel(request.status)) throw new ApiError('Esta solicitação já foi aprovada e não pode ser cancelada.', 409)
+    demoRequests.splice(demoRequests.indexOf(request), 1)
+    recordDemoEvent('solicitacao_cancelada', { tipo: 'solicitacao', id })
   },
 }

@@ -1,28 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { CircleAlert, CircleCheck, Info, Search, SearchX, ShieldCheck, ShieldX, TriangleAlert, Zap } from 'lucide-react'
-import { ApiError } from '../api/client'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { CheckCheck, CircleAlert, CircleCheck, Clock, Search, SearchX, ShieldCheck, ShieldX, Zap } from 'lucide-react'
 import type { Authorization } from '../api/autorizacoes'
-import { cancelRequest, canCancel, getRequest, offerTotal, POLL_INTERVAL_MS, sortOffers, type Offer, type PurchaseRequest } from '../api/solicitacoes'
+import { ApiError } from '../api/client'
+import { listPolicies } from '../api/politicas'
+import { canApprove, cancelRequest, canCancel, getRequest, requestTitle, type PurchaseRequest, type RequestItem } from '../api/solicitacoes'
 import { ApprovalDialog } from '../components/ApprovalDialog'
 import { OfferCard } from '../components/OfferCard'
 import { StatusBadge } from '../components/StatusBadge'
 import { useResource } from '../hooks/useResource'
-import { atStore, formatBRL, formatDateTime, formatTime } from '../utils/format'
+import { formatBRL, formatDateTime, joinList, plural } from '../utils/format'
 
-const TITLES: Record<PurchaseRequest['status'], string> = {
-  processando: 'Buscando ofertas…',
-  com_resultado: 'Ofertas encontradas',
-  sem_resultado: 'Não encontrei ofertas',
-  aprovada: 'Compra aprovada',
-  cancelada: 'Solicitação cancelada',
+function title(request: PurchaseRequest) {
+  switch (request.status) {
+    case 'aguardando_aprovacao': return request.avaliacao.permitida ? 'Sua cesta está pronta' : 'Sua cesta precisa de ajuste'
+    case 'sem_resultado': return 'Não encontrei nada da lista'
+    case 'aprovada': return request.compra_automatica ? 'Comprei dentro da sua política' : 'Compra aprovada'
+    case 'concluida': return 'Compra concluída'
+    case 'expirada': return 'Esta compra expirou'
+  }
 }
 
 function errorMessage(caught: unknown) {
   return caught instanceof Error ? caught.message : 'Não foi possível concluir. Tente de novo.'
 }
 
-function CancelBox({ request, onCancelled, onClose }: { request: PurchaseRequest; onCancelled: () => void; onClose: () => void }) {
+function CancelBox({ request, onClose }: { request: PurchaseRequest; onClose: () => void }) {
+  const navigate = useNavigate()
   const [cancelling, setCancelling] = useState(false)
   const [error, setError] = useState('')
   const keepRef = useRef<HTMLButtonElement>(null)
@@ -34,7 +38,7 @@ function CancelBox({ request, onCancelled, onClose }: { request: PurchaseRequest
     setCancelling(true)
     try {
       await cancelRequest(request.id)
-      onCancelled()
+      navigate('/compras/nova', { state: { notice: 'Solicitação cancelada. Ela saiu do seu histórico.' } })
     } catch (caught) {
       setError(errorMessage(caught))
       setCancelling(false)
@@ -43,7 +47,7 @@ function CancelBox({ request, onCancelled, onClose }: { request: PurchaseRequest
 
   return (
     <div className="policy-confirm" role="group" aria-labelledby="cancelar-texto" onKeyDown={(event) => { if (event.key === 'Escape' && !cancelling) onClose() }}>
-      <p id="cancelar-texto"><strong>Cancelar esta solicitação?</strong> Eu paro de buscar e nenhuma oferta dela poderá ser aprovada. Não dá para desfazer.</p>
+      <p id="cancelar-texto"><strong>Cancelar esta solicitação?</strong> Ela sai do seu histórico e nada desta cesta poderá ser aprovado. Não dá para desfazer.</p>
       {error && <p className="field-error" role="alert"><CircleAlert aria-hidden="true" />{error}</p>}
       <div className="row">
         <button className="btn btn-danger btn-sm" type="button" onClick={confirm} aria-busy={cancelling} disabled={cancelling}>
@@ -55,47 +59,124 @@ function CancelBox({ request, onCancelled, onClose }: { request: PurchaseRequest
   )
 }
 
-function Summary({ request }: { request: PurchaseRequest }) {
-  const inside = request.ofertas.filter((offer) => offer.dentro_da_politica).length
-  const total = request.ofertas.length
-
-  if (request.status === 'aprovada') {
-    const authorization = request.autorizacao
+// O que aconteceu depois da aprovação, em uma frase com o próximo passo.
+function StatusNotice({ request, policyName }: { request: PurchaseRequest; policyName: string | null }) {
+  const total = formatBRL(request.cesta.total)
+  if (request.status === 'aprovada' && request.compra_automatica) {
     return (
       <div className="alert alert-success">
-        {authorization?.automatica ? <Zap aria-hidden="true" /> : <CircleCheck aria-hidden="true" />}
+        <Zap aria-hidden="true" />
         <p>
-          {!authorization && 'Esta compra foi aprovada. '}
-          {authorization?.automatica &&
-            `Comprei ${authorization.titulo} por ${formatBRL(authorization.valor_maximo)} ${atStore(authorization.loja)} sozinho, porque cabia na sua política ${authorization.politica_nome ?? 'automática'}. Se não quiser, revogue até ${formatTime(authorization.expira_em)}. `}
-          {authorization && !authorization.automatica &&
-            `Você aprovou ${authorization.titulo}: até ${formatBRL(authorization.valor_maximo)} ${atStore(authorization.loja)}, válido até ${formatTime(authorization.expira_em)} e para um uso só. `}
-          Acompanhe em <Link to="/autorizacoes">Autorizações</Link>.
+          Comprei esta cesta por {total} sozinho, porque ela cabia na sua política {policyName ?? 'automática'}.
+          {' '}O Pix já foi gerado; se não quiser, cancele o pedido antes de pagar. Acompanhe em <Link to="/pedidos">Pedidos</Link>.
         </p>
       </div>
     )
   }
-  if (request.status === 'cancelada') {
+  if (request.status === 'aprovada') {
+    return (
+      <div className="alert alert-success">
+        <CircleCheck aria-hidden="true" />
+        <p>Você aprovou esta cesta de {total}. A autorização vale por pouco tempo e para um uso só: acompanhe em <Link to="/autorizacoes">Autorizações</Link>.</p>
+      </div>
+    )
+  }
+  if (request.status === 'concluida') {
     return (
       <div className="alert alert-info">
-        <Info aria-hidden="true" />
-        <p>Você cancelou esta solicitação em {formatDateTime(request.atualizada_em)}. As ofertas ficam aqui só para consulta.</p>
+        <CheckCheck aria-hidden="true" />
+        <p>O pagamento de {total} foi confirmado. O comprovante e a entrega estão em <Link to="/pedidos">Pedidos</Link>.</p>
       </div>
     )
   }
-  if (!inside) {
+  if (request.status === 'expirada') {
     return (
       <div className="alert alert-warning">
-        <TriangleAlert aria-hidden="true" />
-        <p>Encontrei {total} {total === 1 ? 'oferta' : 'ofertas'}, mas nenhuma cabe nas suas políticas. Ajuste uma <Link to="/politicas">política</Link> ou descreva a compra de outro jeito.</p>
+        <Clock aria-hidden="true" />
+        <p>O Pix venceu ou o pedido foi cancelado antes do pagamento, então nada foi cobrado. Para comprar de novo, <Link to="/compras/nova" state={{ description: requestTitle(request) }}>faça uma nova lista</Link>.</p>
       </div>
     )
   }
+  return null
+}
+
+function BasketPanel({ request, policyName, action }: { request: PurchaseRequest; policyName: string | null; action: ReactNode }) {
+  const { cesta, avaliacao } = request
+  const found = request.itens.filter((item) => item.recomendada).length
+
   return (
-    <p className="request-summary">
-      <ShieldCheck aria-hidden="true" />
-      Encontrei {total} {total === 1 ? 'oferta' : 'ofertas'}; {inside === total ? (total === 1 ? 'ela cabe' : 'todas cabem') : `${inside} ${inside === 1 ? 'cabe' : 'cabem'}`} nas suas políticas.
-    </p>
+    <section className="panel" aria-labelledby="cesta-titulo">
+      <div className="panel-header"><h2 id="cesta-titulo">Cesta</h2></div>
+      <div className="panel-body basket">
+        <dl className="summary-list">
+          <div><dt>Itens com oferta</dt><dd>{found} de {request.itens.length}</dd></div>
+          <div><dt>Produtos</dt><dd className="num">{formatBRL(cesta.subtotal)}</dd></div>
+          <div><dt>Frete</dt><dd className="num">{cesta.frete ? formatBRL(cesta.frete) : 'Grátis'}</dd></div>
+          <div><dt>{cesta.lojas.length === 1 ? 'Loja' : 'Lojas'}</dt><dd>{joinList(cesta.lojas)}</dd></div>
+          <div><dt>Total</dt><dd className="price">{formatBRL(cesta.total)}</dd></div>
+        </dl>
+
+        <div className="basket-side">
+          {avaliacao.permitida ? (
+            <p className="basket-policy">
+              <ShieldCheck aria-hidden="true" />
+              <span>
+                {!avaliacao.politica_id && 'Nenhuma política ativa: posso comprar, mas só com a sua aprovação.'}
+                {avaliacao.politica_id && (policyName ? <>Cabe na sua política <strong>{policyName}</strong>.</> : 'Cabe nas suas políticas.')}
+                {avaliacao.compra_automatica && request.status === 'aguardando_aprovacao' && ' Ela permite compra automática, mas desta vez preciso da sua aprovação.'}
+              </span>
+            </p>
+          ) : (
+            <div className="alert alert-warning">
+              <ShieldX aria-hidden="true" />
+              <div className="stack">
+                <p><strong>Nenhuma política permite esta cesta.</strong> Ajuste uma <Link to="/politicas">política</Link> ou mude a lista.</p>
+                {avaliacao.motivos.length > 0 && <ul className="offer-reasons">{avaliacao.motivos.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
+              </div>
+            </div>
+          )}
+          {avaliacao.permitida && avaliacao.motivos.length > 0 && (
+            <ul className="offer-reasons">{avaliacao.motivos.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+          )}
+          {action}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ItemSection({ item, index }: { item: RequestItem; index: number }) {
+  const headingId = `item-${index}`
+  const notes = [...item.explicacao]
+  if (item.descartadas) notes.push(`${plural(item.descartadas, 'oferta descartada', 'ofertas descartadas')} pelas políticas`)
+  // A quantidade é de embalagens da oferta, não a que a pessoa escreveu ("2 kg de feijão" vira 2 pacotes de 1 kg).
+  // Quando a API ajustou, a explicação já conta; senão, a tela diz quantas embalagens entram na cesta.
+  if (item.recomendada && !notes.some((note) => /embalage/i.test(note))) notes.unshift(`${plural(item.quantidade, 'embalagem', 'embalagens')} na cesta`)
+
+  return (
+    <li className="basket-item" aria-labelledby={headingId}>
+      <div className="basket-item-head">
+        <h3 id={headingId}>{item.descricao}</h3>
+        {notes.length > 0 && <span className="text-caption">{notes.join(' · ')}</span>}
+      </div>
+      {item.recomendada ? (
+        <>
+          <OfferCard offer={item.recomendada} position={1} quantity={item.quantidade} />
+          {item.alternativas.length > 0 && (
+            <details className="alternatives">
+              <summary>Ver {plural(item.alternativas.length, 'alternativa')}</summary>
+              <ol className="offer-list">
+                {item.alternativas.map((offer, position) => (
+                  <li key={offer.id_externo}><OfferCard offer={offer} position={position + 2} quantity={item.quantidade} /></li>
+                ))}
+              </ol>
+            </details>
+          )}
+        </>
+      ) : (
+        <p className="basket-missing"><SearchX aria-hidden="true" />Não encontrei oferta para este item, então ele ficou fora da cesta.</p>
+      )}
+    </li>
   )
 }
 
@@ -103,29 +184,18 @@ export function RequestPage() {
   const { id = '' } = useParams()
   const load = useCallback(() => getRequest(id), [id])
   const { data: request, error, loading, reload, setData } = useResource(load)
+  const { data: policies } = useResource(listPolicies)
   const [confirming, setConfirming] = useState(false)
+  const [approving, setApproving] = useState(false)
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
+  const approveButtonRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const [approving, setApproving] = useState<Offer | null>(null)
-
-  // Enquanto a API busca e ranqueia, pergunta de novo até sair de "processando".
-  useEffect(() => {
-    if (request?.status !== 'processando') return
-    const timer = window.setTimeout(() => {
-      getRequest(id).then(setData).catch(() => undefined)
-    }, POLL_INTERVAL_MS)
-    return () => window.clearTimeout(timer)
-  }, [id, request, setData])
 
   if (loading && !request) {
     return (
       <div className="page page-enter" aria-busy="true">
-        <header className="page-header"><div><span className="text-label">Resultado da busca</span><h1>Carregando…</h1></div></header>
-        <div className="offer-list">
-          {[0, 1].map((item) => (
-            <div className="card stack" key={item}><span className="skeleton skeleton-title" /><span className="skeleton" /><span className="skeleton skeleton-short" /></div>
-          ))}
-        </div>
+        <header className="page-header"><div><span className="text-label">Sua lista</span><h1>Carregando…</h1></div></header>
+        <section className="panel"><div className="panel-body stack"><span className="skeleton skeleton-title" /><span className="skeleton" /><span className="skeleton skeleton-short" /></div></section>
       </div>
     )
   }
@@ -134,11 +204,11 @@ export function RequestPage() {
     const missing = error instanceof ApiError && error.status === 404
     return (
       <div className="page page-enter">
-        <header className="page-header"><div><span className="text-label">Resultado da busca</span><h1>{missing ? 'Não encontrei esta solicitação' : 'Não consegui carregar'}</h1></div></header>
+        <header className="page-header"><div><span className="text-label">Sua lista</span><h1>{missing ? 'Não encontrei esta solicitação' : 'Não consegui carregar'}</h1></div></header>
         <section className="panel">
           <div className="empty-state">
             <span className="empty-state-icon"><SearchX aria-hidden="true" /></span>
-            <strong>{missing ? 'Ela pode ser de outra conta, ou esta parte ainda está sendo conectada na API.' : errorMessage(error)}</strong>
+            <strong>{missing ? 'Ela pode ter sido cancelada ou ser de outra conta.' : errorMessage(error)}</strong>
             <div className="row">
               {!missing && <button className="btn btn-secondary" type="button" onClick={reload}>Tentar de novo</button>}
               <Link className="btn btn-primary" to="/compras/nova"><Search aria-hidden="true" />Nova compra</Link>
@@ -149,45 +219,35 @@ export function RequestPage() {
     )
   }
 
+  const policyName = policies?.find((policy) => policy.id === request.avaliacao.politica_id)?.nome ?? null
+
   function handleApproved(authorization: Authorization) {
-    setData((current) => current && { ...current, status: 'aprovada', autorizacao: authorization, atualizada_em: authorization.criada_em })
+    setData((current) => current && { ...current, status: 'aprovada', atualizada_em: authorization.criada_em })
   }
 
   function closeApproval() {
-    const offerId = approving?.id
-    setApproving(null)
-    // Volta para o botão que abriu o modal; se a compra foi aprovada, ele sumiu e o foco vai para o título.
-    window.requestAnimationFrame(() => {
-      const button = offerId ? document.getElementById(`aprovar-${offerId}`) : null
-      ;(button ?? headingRef.current)?.focus()
-    })
+    setApproving(false)
+    // Se aprovou, o botão sumiu e o foco vai para o título, que agora diz "Compra aprovada".
+    window.requestAnimationFrame(() => (approveButtonRef.current ?? headingRef.current)?.focus())
   }
 
-  function offerActions(offer: Offer, isTop: boolean) {
-    if (request?.status !== 'com_resultado') return undefined
-    if (!offer.dentro_da_politica) {
-      return <button className="btn btn-secondary" type="button" disabled><ShieldX aria-hidden="true" />Fora da política</button>
-    }
-    return (
-      <button id={`aprovar-${offer.id}`} className={isTop ? 'btn btn-primary' : 'btn btn-secondary'} type="button" onClick={() => setApproving(offer)}>
-        Aprovar compra de {formatBRL(offerTotal(offer))}
-      </button>
-    )
-  }
-
-  const offers = sortOffers(request.ofertas)
-  const topId = request.status === 'com_resultado' || request.status === 'aprovada' ? offers.find((offer) => offer.dentro_da_politica)?.id : undefined
+  const approveAction = canApprove(request) ? (
+    <button ref={approveButtonRef} className="btn btn-primary" type="button" onClick={() => setApproving(true)}>
+      Aprovar compra de {formatBRL(request.cesta.total)}
+    </button>
+  ) : null
 
   return (
     <div className="page page-enter">
       <header className="page-header">
         <div>
-          <span className="text-label">Resultado da busca</span>
-          <h1 ref={headingRef} tabIndex={-1}>{TITLES[request.status]}</h1>
-          <p>Você pediu: <q>{request.intencao}</q> · {formatDateTime(request.criada_em)}</p>
+          <span className="text-label">Sua lista</span>
+          <h1 ref={headingRef} tabIndex={-1}>{title(request)}</h1>
+          <p>Você pediu: <q>{requestTitle(request)}</q> · {formatDateTime(request.criada_em)}</p>
         </div>
         <div className="request-header-side">
           <StatusBadge kind="solicitacao" status={request.status} />
+          {request.avaliacao.compra_automatica && request.avaliacao.permitida && <StatusBadge kind="autonomia" status="automatica" />}
           {canCancel(request.status) && !confirming && (
             <button ref={cancelButtonRef} className="btn btn-secondary btn-sm" type="button" onClick={() => setConfirming(true)}>Cancelar solicitação</button>
           )}
@@ -195,54 +255,33 @@ export function RequestPage() {
       </header>
 
       {confirming && (
-        <CancelBox
-          request={request}
-          onCancelled={() => {
-            setConfirming(false)
-            setData({ ...request, status: 'cancelada', atualizada_em: new Date().toISOString() })
-            // O botão de cancelar some; o foco vai para o título, que agora diz "Solicitação cancelada".
-            window.requestAnimationFrame(() => headingRef.current?.focus())
-          }}
-          onClose={() => { setConfirming(false); window.requestAnimationFrame(() => cancelButtonRef.current?.focus()) }}
-        />
+        <CancelBox request={request} onClose={() => { setConfirming(false); window.requestAnimationFrame(() => cancelButtonRef.current?.focus()) }} />
       )}
 
-      <p className="sr-only" role="status">{request.status === 'processando' ? 'Buscando ofertas.' : TITLES[request.status]}</p>
+      <StatusNotice request={request} policyName={policyName} />
 
-      {request.status === 'processando' && (
-        <section className="panel" aria-busy="true">
-          <div className="panel-body stack">
-            <p className="text-small text-muted">Estou consultando o catálogo e comparando preço, frete, prazo e avaliação. Isso leva alguns segundos.</p>
-            <span className="skeleton skeleton-title" />
-            <span className="skeleton" />
-            <span className="skeleton skeleton-short" />
-          </div>
-        </section>
-      )}
-
-      {request.status === 'sem_resultado' && (
+      {request.status === 'sem_resultado' ? (
         <section className="panel">
           <div className="empty-state">
             <span className="empty-state-icon"><SearchX aria-hidden="true" /></span>
-            <strong>Não encontrei nada no catálogo para essa descrição.</strong>
-            <p>Tente com outras palavras, diga a categoria ("fone", "cadeira") ou deixe o pedido menos específico.</p>
-            <Link className="btn btn-primary" to="/compras/nova" state={{ description: request.intencao }}><Search aria-hidden="true" />Descrever de outro jeito</Link>
+            <strong>Não encontrei no catálogo nenhum item desta lista.</strong>
+            <p>Escreva um item por vez, separados por vírgula, com o nome que aparece na prateleira: "arroz 5kg, 2 leites, detergente".</p>
+            <Link className="btn btn-primary" to="/compras/nova" state={{ description: requestTitle(request) }}><Search aria-hidden="true" />Escrever de outro jeito</Link>
           </div>
         </section>
-      )}
-
-      {offers.length > 0 && (
+      ) : (
         <>
-          <Summary request={request} />
-          <ol className="offer-list" aria-label="Ofertas ranqueadas">
-            {offers.map((offer) => (
-              <li key={offer.id}><OfferCard offer={offer} isTop={offer.id === topId} actions={offerActions(offer, offer.id === topId)} /></li>
-            ))}
-          </ol>
+          <BasketPanel request={request} policyName={policyName} action={approveAction} />
+          <section className="stack" aria-labelledby="itens-titulo">
+            <h2 id="itens-titulo">Itens da lista</h2>
+            <ol className="basket-items">
+              {request.itens.map((item, index) => <ItemSection key={`${item.descricao}-${index}`} item={item} index={index} />)}
+            </ol>
+          </section>
         </>
       )}
 
-      {approving && <ApprovalDialog requestId={request.id} offer={approving} onClose={closeApproval} onApproved={handleApproved} />}
+      {approving && <ApprovalDialog request={request} onClose={closeApproval} onApproved={handleApproved} />}
     </div>
   )
 }

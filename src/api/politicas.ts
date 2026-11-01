@@ -1,6 +1,6 @@
 import { demoMode } from './auth'
 import { ApiError, apiRequest } from './client'
-import { demoId, notFound, nowIso, wait } from './demo'
+import { demoId, notFound, nowIso, recordDemoEvent, wait } from './demo'
 
 export type AutonomyLevel = 'manual' | 'automatica'
 
@@ -57,9 +57,9 @@ export function policyToInput({ nome, teto_por_compra, categorias, lojas, nivel_
 let demoPolicies: Policy[] = [
   {
     id: 'demo-politica-1',
-    nome: 'Eletrônicos do dia a dia',
-    teto_por_compra: 500,
-    categorias: ['smartphones', 'mobile-accessories', 'laptops'],
+    nome: 'Mercado do mês',
+    teto_por_compra: 400,
+    categorias: [],
     lojas: [],
     nivel_autonomia: 'manual',
     ativa: true,
@@ -68,9 +68,9 @@ let demoPolicies: Policy[] = [
   },
   {
     id: 'demo-politica-2',
-    nome: 'Casa',
-    teto_por_compra: 80,
-    categorias: ['home-decoration', 'kitchen-accessories', 'groceries'],
+    nome: 'Limpeza da casa',
+    teto_por_compra: 60,
+    categorias: ['casa e limpeza'],
     lojas: [],
     nivel_autonomia: 'automatica',
     ativa: true,
@@ -115,6 +115,7 @@ const demo = {
     const now = nowIso()
     const policy: Policy = { ...validate(input), id: demoId(), criada_em: now, atualizada_em: now }
     demoPolicies = [...demoPolicies, policy]
+    recordDemoEvent('politica_criada', { tipo: 'politica', id: policy.id })
     return { ...policy }
   },
   async update(id: string, input: PolicyInput) {
@@ -122,11 +123,13 @@ const demo = {
     const current = demoPolicies.find((policy) => policy.id === id) ?? notFound('Política não encontrada.')
     const policy: Policy = { ...current, ...validate(input), atualizada_em: nowIso() }
     demoPolicies = demoPolicies.map((item) => (item.id === id ? policy : item))
+    recordDemoEvent('politica_substituida', { tipo: 'politica', id })
     return { ...policy }
   },
   async remove(id: string) {
     await wait()
     if (!demoPolicies.some((policy) => policy.id === id)) notFound('Política não encontrada.')
     demoPolicies = demoPolicies.filter((policy) => policy.id !== id)
+    recordDemoEvent('politica_removida', { tipo: 'politica', id })
   },
 }
