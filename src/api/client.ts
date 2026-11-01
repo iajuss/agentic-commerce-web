@@ -18,6 +18,13 @@ export class ApiError extends Error {
   }
 }
 
+// GET /health: 200 com {"status": "ok", "banco": "ok"}; sem banco, a API responde 503.
+export type Health = { status: string; banco: string }
+
+export function getHealth() {
+  return apiRequest<Health>('/health')
+}
+
 type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown }
 
 export async function apiRequest<T>(path: string, init: RequestOptions = {}): Promise<T> {

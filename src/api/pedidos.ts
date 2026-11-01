@@ -105,6 +105,11 @@ export function listTickets(orderId: string) {
   return apiRequest<Ticket[]>(`/pedidos/${orderId}/chamados`)
 }
 
+export function getTicket(orderId: string, ticketId: string) {
+  if (demoMode) return demo.ticket(orderId, ticketId)
+  return apiRequest<Ticket>(`/pedidos/${orderId}/chamados/${ticketId}`)
+}
+
 export function createTicket(orderId: string, input: TicketInput) {
   if (demoMode) return demo.createTicket(orderId, input)
   return apiRequest<Ticket>(`/pedidos/${orderId}/chamados`, { method: 'POST', body: input })
@@ -296,6 +301,12 @@ const demo = {
       .filter((ticket) => ticket.pedido_id === orderId)
       .sort((a, b) => b.criado_em.localeCompare(a.criado_em))
       .map((ticket) => structuredClone(ticket))
+  },
+  async ticket(orderId: string, ticketId: string) {
+    await wait()
+    findOrder(orderId)
+    const ticket = demoTickets.find((item) => item.pedido_id === orderId && item.id === ticketId) ?? notFound('Chamado não encontrado.')
+    return structuredClone(ticket)
   },
   async createTicket(orderId: string, input: TicketInput) {
     await wait(600)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CircleAlert, Info, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
-import { createPolicy, deletePolicy, listPolicies, policyToInput, updatePolicy, type Policy, type PolicyInput } from '../api/politicas'
+import { ApiError } from '../api/client'
+import { createPolicy, deletePolicy, getPolicy, listPolicies, policyToInput, updatePolicy, type Policy, type PolicyInput } from '../api/politicas'
 import { PolicyForm } from '../components/PolicyForm'
 import { StatusBadge } from '../components/StatusBadge'
 import { useResource } from '../hooks/useResource'
@@ -179,6 +180,22 @@ export function PoliciesPage() {
     closeForm()
   }
 
+  // Abre a edição com a versão atual da política: ela pode ter mudado em outra aba ou aparelho.
+  async function handleEdit(policy: Policy) {
+    setNotice('')
+    try {
+      replace(await getPolicy(policy.id))
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 404) {
+        setData((current) => current?.filter((item) => item.id !== policy.id))
+        setNotice(`A política ${policy.nome} já tinha sido excluída.`)
+        return
+      }
+      // Sem a versão atual, edita a que está na tela; o PUT confere o resto.
+    }
+    setEditing(policy.id)
+  }
+
   function replace(updated: Policy) {
     setData((current) => current?.map((policy) => (policy.id === updated.id ? updated : policy)))
   }
@@ -250,7 +267,7 @@ export function PoliciesPage() {
               <PolicyCard
                 key={policy.id}
                 policy={policy}
-                onEdit={() => { setNotice(''); setEditing(policy.id) }}
+                onEdit={() => handleEdit(policy)}
                 onChange={(updated) => {
                   replace(updated)
                   setNotice(`Política ${updated.nome} ${updated.ativa ? 'ativada' : 'desativada'}.`)
