@@ -2,6 +2,10 @@
 
 Front-end React do projeto Agentic Commerce: uma experiência de compra por intenção com autonomia controlada.
 
+**Produção:** o front está no ar em <http://54.209.228.101/>, servido pelo nginx na EC2, que também faz o proxy de
+`/api` para a API Flask ([`agentic-commerce-api`](https://github.com/iajuss/agentic-commerce-api)). Para entrar, crie
+uma conta em "Criar conta" com um e-mail de teste; o site é HTTP, então não use uma senha real.
+
 Antes de criar ou alterar uma tela, leia [`docs/identidade-visual.md`](docs/identidade-visual.md): cores, tipografia,
 componentes, ícones e tom de voz são obrigatórios. As regras gerais do projeto estão em [`AGENTS.md`](AGENTS.md).
 
