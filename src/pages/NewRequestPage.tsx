@@ -41,7 +41,7 @@ function RequestHistory() {
         <div className="empty-state">
           <span className="empty-state-icon"><History aria-hidden="true" /></span>
           <strong>Nenhuma lista ainda.</strong>
-          <p>Quando você mandar uma lista de compras, ela aparece aqui com a cesta que montei.</p>
+          <p>Quando você mandar uma lista de compras, ela aparece aqui com a cesta que montei. Abra uma delas para aprovar, acompanhar ou cancelar.</p>
         </div>
       )}
       {requests && requests.length > 0 && (

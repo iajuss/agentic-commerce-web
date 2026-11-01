@@ -39,7 +39,7 @@ function MainPolicy({ policy, loading, error, hasPolicies }: MainPolicyProps) {
             ? 'Nenhuma política está ativa. O agente pode sugerir qualquer oferta, mas toda compra vai precisar da sua aprovação.'
             : 'Você ainda não definiu limites. Crie uma política para dizer quanto o agente pode gastar e onde.'}
         </p>
-        <Link className="btn btn-secondary btn-sm" to="/politicas"><Plus aria-hidden="true" />{hasPolicies ? 'Ativar uma política' : 'Criar política'}</Link>
+        <Link className="btn btn-primary btn-sm" to="/politicas"><Plus aria-hidden="true" />{hasPolicies ? 'Ativar uma política' : 'Criar política'}</Link>
       </div>
     )
   }

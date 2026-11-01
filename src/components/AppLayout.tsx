@@ -6,6 +6,8 @@ import {
   LogOut,
   Menu,
   Package,
+  PanelLeftClose,
+  PanelLeftOpen,
   ScrollText,
   Search,
   ShieldCheck,
@@ -30,11 +32,38 @@ const navigation: NavItem[] = [
 
 const MOBILE_SLOTS = 4
 
+// Preferência de cada pessoa neste navegador; sem acesso ao storage, o menu começa aberto.
+const COLLAPSED_KEY = 'agentic-commerce:menu-recolhido'
+
+function readCollapsed() {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function saveCollapsed(collapsed: boolean) {
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0')
+  } catch {
+    // Sem storage, a escolha vale só até recarregar a página.
+  }
+}
+
 export function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(readCollapsed)
   const initial = user?.nome?.charAt(0).toUpperCase() || 'U'
+
+  function toggleCollapsed() {
+    setCollapsed((current) => {
+      saveCollapsed(!current)
+      return !current
+    })
+  }
 
   function handleLogout() {
     logout()
@@ -42,24 +71,34 @@ export function AppLayout() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={collapsed ? 'app-shell is-collapsed' : 'app-shell'}>
       <header className="mobile-bar">
         <NavLink to="/inicio" aria-label="agentic, ir para o início"><Brand /></NavLink>
         <span className="avatar" aria-hidden="true">{initial}</span>
       </header>
 
-      <aside className="sidebar">
+      <aside className="sidebar" id="menu-lateral">
         <div className="sidebar-top">
           <NavLink to="/inicio" className="sidebar-brand" aria-label="agentic, ir para o início">
             <Brand className="brand-full" />
             <Brand compact className="brand-compact" />
           </NavLink>
-          <span className="environment-badge">MVP</span>
+          <button
+            className="icon-button sidebar-toggle"
+            type="button"
+            onClick={toggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-controls="menu-lateral"
+            aria-label={collapsed ? 'Expandir o menu' : 'Recolher o menu'}
+            title={collapsed ? 'Expandir o menu' : 'Recolher o menu'}
+          >
+            {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+          </button>
         </div>
 
         <nav className="main-nav" aria-label="Navegação principal">
           {navigation.map(({ to, label, short, icon: Icon }, index) => (
-            <NavLink key={to} to={to} className={index >= MOBILE_SLOTS ? 'nav-extra' : undefined}>
+            <NavLink key={to} to={to} className={index >= MOBILE_SLOTS ? 'nav-extra' : undefined} title={collapsed ? label : undefined}>
               <Icon aria-hidden="true" />
               <span className={short ? 'nav-label has-short' : 'nav-label'}>{label}</span>
               {short && <span className="nav-short">{short}</span>}

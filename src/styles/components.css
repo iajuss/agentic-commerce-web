@@ -168,7 +168,8 @@ textarea.input { min-height: 120px; resize: vertical; line-height: var(--leading
 .card[aria-disabled="true"] { background: var(--surface-2); box-shadow: none; color: var(--muted); }
 
 .panel { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius-lg); }
-.panel-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--line); }
+/* Altura mínima de um cabeçalho com botão compacto: com ou sem ação, a linha de baixo fica na mesma altura. */
+.panel-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); min-height: calc(var(--control-h-sm) + 2 * var(--space-5) + 1px); padding: var(--space-5) var(--space-6); border-bottom: 1px solid var(--line); }
 .panel-header h2, .panel-header h3 { font-size: var(--text-h3); line-height: var(--leading-h3); }
 .panel-body { padding: var(--space-6); }
 .panel-sunken { background: var(--surface-2); border-color: transparent; }

@@ -47,7 +47,7 @@ export function OrdersPage() {
           <div className="empty-state">
             <span className="empty-state-icon"><Package aria-hidden="true" /></span>
             <strong>Nenhum pedido ainda.</strong>
-            <p>Quando você aprovar uma cesta e gerar o Pix, ou quando eu comprar sozinho dentro de uma política automática, o pedido aparece aqui.</p>
+            <p>Quando você aprovar uma cesta e gerar o Pix, ou quando eu comprar sozinho por uma política automática, o pedido aparece aqui.</p>
             <Link className="btn btn-primary" to="/compras/nova"><Search aria-hidden="true" />Nova compra</Link>
           </div>
         </section>
