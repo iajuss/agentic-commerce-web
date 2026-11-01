@@ -28,6 +28,11 @@ export function listPolicies() {
   return apiRequest<Policy[]>('/politicas')
 }
 
+export function getPolicy(id: string) {
+  if (demoMode) return demo.get(id)
+  return apiRequest<Policy>(`/politicas/${id}`)
+}
+
 export function createPolicy(input: PolicyInput) {
   if (demoMode) return demo.create(input)
   return apiRequest<Policy>('/politicas', { method: 'POST', body: input })
@@ -109,6 +114,11 @@ const demo = {
   async list() {
     await wait()
     return demoPolicies.map((policy) => ({ ...policy }))
+  },
+  async get(id: string) {
+    await wait()
+    const policy = demoPolicies.find((item) => item.id === id) ?? notFound('Política não encontrada.')
+    return { ...policy }
   },
   async create(input: PolicyInput) {
     await wait()

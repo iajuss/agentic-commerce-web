@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { Check, CircleAlert, CircleCheck, Copy, LifeBuoy, Package, QrCode, RotateCcw } from 'lucide-react'
+import { Check, CircleAlert, CircleCheck, Copy, LifeBuoy, Package, QrCode, RefreshCw, RotateCcw } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { itemCount } from '../api/autorizacoes'
 import {
@@ -9,6 +9,7 @@ import {
   canReturn,
   createTicket,
   getOrder,
+  getTicket,
   isMoving,
   listTickets,
   orderCode,
@@ -321,6 +322,41 @@ function ActionsPanel({ order, onChange }: { order: Order; onChange: (order: Ord
   )
 }
 
+// Um chamado da lista, com "Atualizar" para reler o andamento dele sem recarregar o pedido.
+function TicketItem({ orderId, ticket, onRefreshed }: { orderId: string; ticket: Ticket; onRefreshed: (ticket: Ticket) => void }) {
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState('')
+
+  async function refresh() {
+    setError('')
+    setRefreshing(true)
+    try {
+      onRefreshed(await getTicket(orderId, ticket.id))
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  return (
+    <li className="ticket">
+      <div className="ticket-head">
+        <strong>{ticket.assunto}</strong>
+        <StatusBadge kind="chamado" status={ticket.status} />
+      </div>
+      <p className="text-small">{ticket.mensagem}</p>
+      <div className="ticket-head">
+        <span className="text-caption">Aberto em {formatDateTime(ticket.criado_em)} · atualizado em {formatDateTime(ticket.atualizado_em)}</span>
+        <button className="btn btn-ghost btn-sm" type="button" onClick={refresh} aria-busy={refreshing} disabled={refreshing}>
+          <RefreshCw aria-hidden="true" />{refreshing ? 'Atualizando…' : 'Atualizar'}
+        </button>
+      </div>
+      {error && <FieldError id={`chamado-${ticket.id}-erro`} text={error} />}
+    </li>
+  )
+}
+
 function TicketsSection({ orderId }: { orderId: string }) {
   const load = useCallback(() => listTickets(orderId), [orderId])
   const { data: tickets, error, loading, reload, setData } = useResource(load)
@@ -375,14 +411,12 @@ function TicketsSection({ orderId }: { orderId: string }) {
         {tickets && tickets.length > 0 && (
           <ul className="ticket-list">
             {tickets.map((ticket: Ticket) => (
-              <li className="ticket" key={ticket.id}>
-                <div className="ticket-head">
-                  <strong>{ticket.assunto}</strong>
-                  <StatusBadge kind="chamado" status={ticket.status} />
-                </div>
-                <p className="text-small">{ticket.mensagem}</p>
-                <span className="text-caption">Aberto em {formatDateTime(ticket.criado_em)}</span>
-              </li>
+              <TicketItem
+                key={ticket.id}
+                orderId={orderId}
+                ticket={ticket}
+                onRefreshed={(updated) => setData((current) => current?.map((item) => (item.id === updated.id ? updated : item)))}
+              />
             ))}
           </ul>
         )}

@@ -43,6 +43,12 @@ export function listAuthorizations() {
   return apiRequest<Authorization[]>('/autorizacoes')
 }
 
+// GET /autorizacoes/{id}: qualquer status; a API já marca como expirada a que venceu sem pedido.
+export function getAuthorization(id: string) {
+  if (demoMode) return demo.get(id)
+  return apiRequest<Authorization>(`/autorizacoes/${id}`)
+}
+
 export function revokeAuthorization(id: string) {
   if (demoMode) return demo.revoke(id)
   return apiRequest<void>(`/autorizacoes/${id}`, { method: 'DELETE' })
@@ -121,6 +127,12 @@ const demo = {
       .filter((item) => effectiveStatus(item) === 'ativa')
       .sort((a, b) => b.criada_em.localeCompare(a.criada_em))
       .map((item) => structuredClone(item))
+  },
+  async get(id: string) {
+    await wait()
+    const authorization = demoAuthorizations.find((item) => item.id === id)
+    if (!authorization) throw new ApiError('Autorização não encontrada.', 404)
+    return structuredClone(authorization)
   },
   async revoke(id: string) {
     await wait()

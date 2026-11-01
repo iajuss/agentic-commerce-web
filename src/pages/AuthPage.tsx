@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, CircleAlert, Info } from 'lucide-react'
+import { ArrowRight, CircleAlert, Info, TriangleAlert } from 'lucide-react'
 import { Brand } from '../components/Brand'
 import { FieldError } from '../components/FieldError'
 import { demoMode } from '../api/auth'
+import { getHealth } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
 import { formErrors, type FormErrors } from '../utils/forms'
 
@@ -20,6 +21,17 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors<Field> | null>(null)
+  const [serverDown, setServerDown] = useState(false)
+
+  // Avisa antes de a pessoa digitar tudo se a API ou o banco estiverem fora do ar.
+  useEffect(() => {
+    if (demoMode) return
+    let active = true
+    getHealth()
+      .then(() => { if (active) setServerDown(false) })
+      .catch(() => { if (active) setServerDown(true) })
+    return () => { active = false }
+  }, [])
 
   if (isAuthenticated) return <Navigate to="/inicio" replace />
 
@@ -78,6 +90,12 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           </div>
 
           <form onSubmit={handleSubmit} className="auth-form">
+            {serverDown && !errors?.message && (
+              <div className="alert alert-warning" role="status">
+                <TriangleAlert aria-hidden="true" />
+                <p>O servidor não está respondendo agora, então entrar e criar conta podem falhar. Tente de novo em instantes.</p>
+              </div>
+            )}
             {errors?.message && (
               <div className="alert alert-danger" role="alert">
                 <CircleAlert aria-hidden="true" />
