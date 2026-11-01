@@ -142,6 +142,7 @@
   --control-h-sm: 36px;    /* botão compacto (tabelas, cards) */
   --sidebar-width: 248px;
   --sidebar-collapsed: 76px; /* menu recolhido: só os ícones */
+  --sidebar-item: 44px;      /* largura útil do menu recolhido (76px menos o respiro dos lados) */
   --content-max: 1160px;
   --focus-width: 2px;      /* espessura do anel de foco */
   --focus-offset: 2px;     /* distância do anel até o elemento */

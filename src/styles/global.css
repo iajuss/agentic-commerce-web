@@ -17,7 +17,8 @@
 .sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .sidebar-brand { display: inline-flex; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--on-dark); }
 .sidebar-brand .brand-compact { display: none; height: 30px; }
-.sidebar-toggle { flex: none; }
+/* Mesma largura do item do menu recolhido e mesmo tamanho de ícone: recolhido, ele fica no eixo dos outros ícones. */
+.sidebar-top .sidebar-toggle { flex: none; width: var(--sidebar-item); font-size: 15px; }
 .sidebar-toggle:focus-visible { outline-offset: calc(var(--focus-offset) * -1); }
 
 .main-nav { display: grid; gap: 2px; }
@@ -33,7 +34,9 @@
 .main-nav a[aria-current="page"] .lucide { color: var(--mint); }
 .main-nav .nav-short, .main-nav .nav-more, .more-sheet { display: none; }
 
-.sidebar-foot { margin-top: auto; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--on-dark-line); }
+/* O avatar fica centrado numa coluna da largura de um item do menu: alinhado com os ícones, aberto ou recolhido. */
+.sidebar-foot .avatar { justify-self: center; }
+.sidebar-foot { margin-top: auto; display: grid; grid-template-columns: var(--sidebar-item) minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--on-dark-line); }
 .avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--mint); color: var(--on-accent); font-family: var(--font-brand); font-weight: 800; }
 .user-summary { min-width: 0; display: grid; font-size: var(--text-caption); line-height: 1.35; }
 .user-summary strong { color: var(--on-dark); font-size: var(--text-small); }
@@ -52,6 +55,8 @@
   .app-shell { transition: grid-template-columns var(--duration-slow) var(--ease-layout); }
   .app-shell.is-collapsed { grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr); }
   .sidebar { overflow-x: clip; }
+  .sidebar-top { transition: gap var(--duration-slow) var(--ease-layout); }
+  .is-collapsed .sidebar-top { gap: 0; }
 
   .sidebar-brand, .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button {
     transition: opacity var(--duration-slow) var(--ease-layout), visibility 0s;
