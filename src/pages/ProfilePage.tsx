@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { CircleAlert, CircleCheck, MapPin } from 'lucide-react'
-import { isNotConnected } from '../api/client'
 import { getProfile, maskCep, onlyDigits, PROFILE_FIELDS, updateProfile, type Profile } from '../api/perfil'
 import { FieldError } from '../components/FieldError'
-import { NotConnected } from '../components/NotConnected'
 import { TagInput } from '../components/TagInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useResource } from '../hooks/useResource'
@@ -275,7 +273,7 @@ export function ProfilePage() {
         </section>
       )}
 
-      {Boolean(error) && !profile && (isNotConnected(error) ? <NotConnected message="Seu perfil, com preferências, orçamento e endereço, vai aparecer aqui assim que a API tiver essa rota." /> : (
+      {Boolean(error) && !profile && (
         <div className="alert alert-danger" role="alert">
           <CircleAlert aria-hidden="true" />
           <div className="stack">
@@ -283,7 +281,7 @@ export function ProfilePage() {
             <div><button className="btn btn-secondary btn-sm" type="button" onClick={reload}>Tentar de novo</button></div>
           </div>
         </div>
-      ))}
+      )}
 
       {profile && (
         <ProfileForm profile={profile} onSaved={handleSaved} />

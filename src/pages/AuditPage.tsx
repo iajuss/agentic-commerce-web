@@ -21,8 +21,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { listAuditEvents, type AuditEvent, type AuditPage as AuditPageData } from '../api/auditoria'
-import { isNotConnected } from '../api/client'
-import { NotConnected } from '../components/NotConnected'
 import { useResource } from '../hooks/useResource'
 import { formatBRL, formatDateTime, formatTime } from '../utils/format'
 
@@ -163,7 +161,7 @@ export function AuditPage() {
         </section>
       )}
 
-      {Boolean(error) && !events && (isNotConnected(error) ? <NotConnected message="A trilha de auditoria vai aparecer aqui assim que a API tiver essa rota." /> : (
+      {Boolean(error) && !events && (
         <div className="alert alert-danger" role="alert">
           <CircleAlert aria-hidden="true" />
           <div className="stack">
@@ -171,7 +169,7 @@ export function AuditPage() {
             <div><button className="btn btn-secondary btn-sm" type="button" onClick={reload}>Tentar de novo</button></div>
           </div>
         </div>
-      ))}
+      )}
 
       {events && events.length === 0 && (
         <section className="panel">

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Ban, CircleAlert, KeyRound, Search } from 'lucide-react'
-import { isNotConnected } from '../api/client'
 import { effectiveStatus, itemCount, listAuthorizations, revokeAuthorization, type Authorization } from '../api/autorizacoes'
-import { NotConnected } from '../components/NotConnected'
 import { StatusBadge } from '../components/StatusBadge'
 import { useResource } from '../hooks/useResource'
 import { atStores, formatBRL, formatDateTime, formatTime, joinList, plural } from '../utils/format'
@@ -148,7 +146,7 @@ export function AuthorizationsPage() {
         </div>
       )}
 
-      {Boolean(error) && !authorizations && (isNotConnected(error) ? <NotConnected message="Suas autorizações, com valor, lojas e validade, vão aparecer aqui assim que a API tiver essa rota." /> : (
+      {Boolean(error) && !authorizations && (
         <div className="alert alert-danger" role="alert">
           <CircleAlert aria-hidden="true" />
           <div className="stack">
@@ -156,7 +154,7 @@ export function AuthorizationsPage() {
             <div><button className="btn btn-secondary btn-sm" type="button" onClick={reload}>Tentar de novo</button></div>
           </div>
         </div>
-      ))}
+      )}
 
       {authorizations && (active.length ? (
         <section className="stack" aria-labelledby="autorizacoes-ativas">

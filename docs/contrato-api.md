@@ -1,5 +1,8 @@
 # Contrato da API usado pelo front-end
 
+O guia completo de integração, com os exemplos de resposta capturados da API, o roteiro de validação e as lacunas
+conhecidas do backend, está em [`integracao-backend.md`](integracao-backend.md).
+
 A fonte da verdade é o **contrato de integração do backend**:
 [`docs/plano-backend/00-contrato-de-integracao.md`](https://github.com/iajuss/agentic-commerce-api/blob/main/docs/plano-backend/00-contrato-de-integracao.md)
 no repositório `agentic-commerce-api`. Este arquivo resume o que cada tela usa e os detalhes que
@@ -16,8 +19,6 @@ Se o backend mudar uma rota, campo ou status, ajuste aqui e em `src/api/` no mes
   A tela mostra `erro` no topo e cada item de `detalhes` embaixo do campo com o mesmo nome.
 - Ids são texto, datas vêm em ISO 8601 com fuso e valores em reais são números (`51.38`).
 - Criar responde `201` com `Location`; excluir ou revogar responde `204` sem corpo.
-- Enquanto uma rota não existir, o Flask responde `404` (inclusive ao preflight do CORS) e a tela
-  mostra "Esta parte ainda está sendo conectada" em vez de quebrar.
 
 ## Rotas e telas
 
@@ -84,7 +85,8 @@ responde `201` já com a cesta pronta (não há processamento em segundo plano).
 Corpo: `{"senha": "..."}`. Aprova a cesta inteira, sempre com senha.
 
 - `201` com a autorização (formato abaixo).
-- **`401` é senha errada, não sessão vencida**: a pessoa continua logada (`reauth: true` em `apiRequest`).
+- **`401` com `detalhes.senha` é senha errada, não sessão vencida**: a pessoa continua logada. Um `401` sem
+  `detalhes` é sessão inválida e encerra a sessão, como em qualquer outra rota (veja `apiRequest`).
 - `422` quando nenhuma política permite a cesta: `{"erro": "...", "detalhes": {"motivos": ["..."]}}`.
 - `409` quando a solicitação não está mais aguardando aprovação.
 

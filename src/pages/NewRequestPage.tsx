@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, ChevronRight, CircleAlert, CircleCheck, History, Info, Search } from 'lucide-react'
-import { isNotConnected } from '../api/client'
+import { ArrowRight, ChevronRight, CircleAlert, CircleCheck, History, Search } from 'lucide-react'
 import { createRequest, listRequests, REQUEST_FIELDS, REQUEST_MAX_LENGTH, requestTitle } from '../api/solicitacoes'
 import { FieldError } from '../components/FieldError'
 import { StatusBadge } from '../components/StatusBadge'
@@ -29,21 +28,13 @@ function RequestHistory() {
       )}
       {Boolean(error) && !requests && (
         <div className="panel-body">
-          {isNotConnected(error) ? (
-            <div className="empty-state">
-              <span className="empty-state-icon"><History aria-hidden="true" /></span>
-              <strong>Esta parte ainda está sendo conectada.</strong>
-              <p>O histórico das suas listas vai aparecer aqui assim que a API tiver essa rota.</p>
+          <div className="alert alert-danger" role="alert">
+            <CircleAlert aria-hidden="true" />
+            <div className="stack">
+              <p><strong>Não consegui carregar o histórico.</strong> {error instanceof Error ? error.message : ''}</p>
+              <div><button className="btn btn-secondary btn-sm" type="button" onClick={reload}>Tentar de novo</button></div>
             </div>
-          ) : (
-            <div className="alert alert-danger" role="alert">
-              <CircleAlert aria-hidden="true" />
-              <div className="stack">
-                <p><strong>Não consegui carregar o histórico.</strong> {error instanceof Error ? error.message : ''}</p>
-                <div><button className="btn btn-secondary btn-sm" type="button" onClick={reload}>Tentar de novo</button></div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
       {requests && requests.length === 0 && (
@@ -84,7 +75,6 @@ export function NewRequestPage() {
   const [description, setDescription] = useState(state?.description ?? '')
   const [sending, setSending] = useState(false)
   const [errors, setErrors] = useState<FormErrors<(typeof REQUEST_FIELDS)[number]> | null>(null)
-  const [notConnected, setNotConnected] = useState(false)
   const fieldRef = useRef<HTMLTextAreaElement>(null)
   const fieldError = errors?.fields.texto
 
@@ -93,14 +83,12 @@ export function NewRequestPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrors(null)
-    setNotConnected(false)
     setSending(true)
     try {
       const request = await createRequest(description)
       navigate(`/compras/${request.id}`)
     } catch (caught) {
-      if (isNotConnected(caught)) setNotConnected(true)
-      else setErrors(formErrors(caught, REQUEST_FIELDS))
+      setErrors(formErrors(caught, REQUEST_FIELDS))
       setSending(false)
     }
   }
@@ -121,12 +109,6 @@ export function NewRequestPage() {
 
       <section className="panel" aria-label="Lista de compras">
         <form className="panel-body stack-lg" onSubmit={handleSubmit} noValidate>
-          {notConnected && (
-            <div className="alert alert-info" role="status">
-              <Info aria-hidden="true" />
-              <p>Esta parte ainda está sendo conectada: a API ainda não recebe solicitações. Dá para testar no modo de demonstração.</p>
-            </div>
-          )}
           {errors?.message && (
             <div className="alert alert-danger" role="alert">
               <CircleAlert aria-hidden="true" />

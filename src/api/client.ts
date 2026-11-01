@@ -18,28 +18,9 @@ export class ApiError extends Error {
   }
 }
 
-// A rota ainda não existe na API (outra pessoa do grupo está fazendo): o Flask responde 404 ou 405.
-// Só use em rotas de lista ou de "me"; num recurso com id, 404 também quer dizer "não encontrado".
-export function isNotConnected(caught: unknown) {
-  return caught instanceof ApiError && (caught.status === 404 || caught.status === 405)
-}
+type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown }
 
-async function apiIsUp() {
-  try {
-    return (await fetch(`${API_URL}/health`)).ok
-  } catch {
-    return false
-  }
-}
-
-type RequestOptions = Omit<RequestInit, 'body'> & {
-  body?: unknown
-  // Rota que confere a senha de novo (aprovar compra): o 401 dela é senha errada, não sessão vencida.
-  reauth?: boolean
-}
-
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { reauth = false, ...init } = options
+export async function apiRequest<T>(path: string, init: RequestOptions = {}): Promise<T> {
   const token = window.localStorage.getItem(TOKEN_KEY)
   const headers = new Headers(init.headers)
 
@@ -55,9 +36,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
     })
   } catch {
-    // Uma rota que ainda não existe responde 404 também ao preflight do CORS, e o navegador só
-    // mostra "falha de rede". Se a API responde no /health, a falha foi a rota, não a conexão.
-    if (await apiIsUp()) throw new ApiError('Esta parte ainda está sendo conectada.', 404)
     throw new ApiError('Não foi possível conectar ao servidor. Tente novamente em instantes.', 0)
   }
 
@@ -65,8 +43,9 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload = hasJson ? await response.json() : undefined
 
   if (!response.ok) {
-    // Na reautenticação o 401 é a senha errada, e a pessoa continua logada para tentar de novo.
-    if (response.status === 401 && token && !reauth) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    // O 401 com detalhes.senha é a senha errada na aprovação: a pessoa continua logada para tentar de novo.
+    // Qualquer outro 401 (token ausente, inválido ou vencido) encerra a sessão.
+    if (response.status === 401 && token && !payload?.detalhes?.senha) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
     const message = payload?.erro || 'Não foi possível concluir a solicitação.'
     throw new ApiError(message, response.status, payload?.detalhes, payload)
   }

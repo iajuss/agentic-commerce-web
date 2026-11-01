@@ -12,7 +12,7 @@ pnpm install
 pnpm dev
 ```
 
-O app conversa com a API Flask (`agentic-commerce-api`), que precisa estar rodando em `http://localhost:5000`. Para outra URL, copie `.env.example` para `.env` e ajuste `VITE_API_URL`.
+O app conversa com a API Flask (`agentic-commerce-api`), que por padrão precisa estar rodando em `http://localhost:5000`. Para usar a API de produção sem rodar o backend, copie `.env.example` para `.env` e use `VITE_API_URL=http://54.209.228.101/api` (o banco é compartilhado: use e-mails de teste, nunca dados reais).
 
 Sem a API, dá para navegar no modo de demonstração com `VITE_USE_MOCK_API=true`: o login aceita qualquer e-mail e senha e nada é salvo. Esse modo nunca vale no build de produção.
 
@@ -23,11 +23,15 @@ VITE_API_URL=http://localhost:5000
 VITE_USE_MOCK_API=false
 ```
 
+O build de produção lê o `.env.production` versionado (`VITE_API_URL=/api`), porque na EC2 o nginx serve o front e
+faz o proxy de `/api` para a API. Não passe `VITE_API_URL=/api` na linha de comando do Git Bash: o MSYS converte o
+valor em `C:/Program Files/Git/api` e nenhuma chamada funciona.
+
 ## Sessão
 
 - O login (`POST /sessoes`) devolve um JWT, guardado no `localStorage` e enviado em `Authorization: Bearer`.
 - O cadastro (`POST /usuarios`) faz o login logo em seguida.
-- Se a API responder 401 a uma requisição com token, ou se o token expirar, a sessão é encerrada e o usuário volta para `/entrar`.
+- Se a API responder 401 a uma requisição com token, ou se o token expirar, a sessão é encerrada e o usuário volta para `/entrar`. A exceção é a senha errada na aprovação (401 com `detalhes.senha`): a pessoa continua logada e tenta de novo.
 
 Nenhuma credencial deve ser commitada. O arquivo `.env` está ignorado pelo Git.
 
@@ -40,7 +44,7 @@ Nenhuma credencial deve ser commitada. O arquivo `.env` está ignorado pelo Git.
 
 ## Contrato com a API
 
-O formato de cada rota que o front usa está resumido em [`docs/contrato-api.md`](docs/contrato-api.md), a partir do contrato de integração do backend. Enquanto uma rota não existir (hoje, `/usuarios/me` e `/auditoria`), a tela mostra "Esta parte ainda está sendo conectada"; no modo de demonstração ela funciona com dados simulados.
+O formato de cada rota que o front usa está resumido em [`docs/contrato-api.md`](docs/contrato-api.md), a partir do contrato de integração do backend. O guia completo, com o roteiro de validação contra a API, está em [`docs/integracao-backend.md`](docs/integracao-backend.md).
 
 ## Rotas já preparadas
 

@@ -34,7 +34,7 @@ export const AUTHORIZATION_TTL_MINUTES = 15
 // Sempre pede a senha: a compra automática não passa por aqui, ela acontece no POST /solicitacoes.
 export function createAuthorization(requestId: string, password: string) {
   if (demoMode) return demo.create(requestId, password)
-  return apiRequest<Authorization>(`/solicitacoes/${requestId}/autorizacoes`, { method: 'POST', body: { senha: password }, reauth: true })
+  return apiRequest<Authorization>(`/solicitacoes/${requestId}/autorizacoes`, { method: 'POST', body: { senha: password } })
 }
 
 // GET /autorizacoes: só as ativas e no prazo, da mais recente para a mais antiga.
@@ -58,9 +58,9 @@ export function itemCount(items: Pick<AuthorizedItem, 'quantidade'>[]) {
   return items.reduce((sum, item) => sum + item.quantidade, 0)
 }
 
-// Na aprovação, 401 é a senha errada (a sessão continua; veja apiRequest).
+// Na aprovação, o 401 com detalhes.senha é a senha errada (a sessão continua; veja apiRequest).
 export function isWrongPassword(caught: unknown) {
-  return caught instanceof ApiError && caught.status === 401
+  return caught instanceof ApiError && caught.status === 401 && Boolean(caught.details?.senha)
 }
 
 // 422: nenhuma política permite a cesta. Os motivos vêm em detalhes.motivos.
@@ -140,7 +140,7 @@ const demo = {
     if (request.status !== 'aguardando_aprovacao') throw new ApiError('Esta solicitação não está aguardando aprovação.', 409)
     if (password === DEMO_WRONG_PASSWORD) {
       recordDemoEvent('reautenticacao_recusada', { tipo: 'solicitacao', id: requestId })
-      throw new ApiError('Senha incorreta.', 401)
+      throw new ApiError('Senha incorreta.', 401, { senha: 'Senha incorreta. Confira e tente de novo.' })
     }
     if (!request.avaliacao.permitida) {
       throw new ApiError('Nenhuma política permite esta compra.', 422, undefined, { detalhes: { motivos: request.avaliacao.motivos } })
