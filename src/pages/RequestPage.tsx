@@ -6,6 +6,7 @@ import { ApiError } from '../api/client'
 import { listPolicies } from '../api/politicas'
 import { canApprove, cancelRequest, canCancel, getRequest, requestTitle, type PurchaseRequest, type RequestItem } from '../api/solicitacoes'
 import { ApprovalDialog } from '../components/ApprovalDialog'
+import { GeneratePixButton } from '../components/GeneratePixButton'
 import { OfferCard } from '../components/OfferCard'
 import { StatusBadge } from '../components/StatusBadge'
 import { useResource } from '../hooks/useResource'
@@ -68,7 +69,7 @@ function StatusNotice({ request, policyName }: { request: PurchaseRequest; polic
         <Zap aria-hidden="true" />
         <p>
           Comprei esta cesta por {total} sozinho, porque ela cabia na sua política {policyName ?? 'automática'}.
-          {' '}O Pix já foi gerado; se não quiser, cancele o pedido antes de pagar. Acompanhe em <Link to="/pedidos">Pedidos</Link>.
+          {' '}O Pix já foi gerado: <Link to={`/pedidos/${request.compra_automatica.pedido_id}`}>pague ou cancele o pedido</Link>. Sem pagar, nada é cobrado.
         </p>
       </div>
     )
@@ -77,7 +78,7 @@ function StatusNotice({ request, policyName }: { request: PurchaseRequest; polic
     return (
       <div className="alert alert-success">
         <CircleCheck aria-hidden="true" />
-        <p>Você aprovou esta cesta de {total}. A autorização vale por pouco tempo e para um uso só: acompanhe em <Link to="/autorizacoes">Autorizações</Link>.</p>
+        <p>Você aprovou esta cesta de {total}. Se ainda não gerou o Pix, faça isso em <Link to="/autorizacoes">Autorizações</Link> antes que a autorização vença; se já gerou, o pagamento está em <Link to="/pedidos">Pedidos</Link>.</p>
       </div>
     )
   }
@@ -85,7 +86,7 @@ function StatusNotice({ request, policyName }: { request: PurchaseRequest; polic
     return (
       <div className="alert alert-info">
         <CheckCheck aria-hidden="true" />
-        <p>O pagamento de {total} foi confirmado. O comprovante e a entrega estão em <Link to="/pedidos">Pedidos</Link>.</p>
+        <p>O pagamento de {total} foi confirmado. O comprovante e a entrega estão em <Link to={request.compra_automatica ? `/pedidos/${request.compra_automatica.pedido_id}` : '/pedidos'}>Pedidos</Link>.</p>
       </div>
     )
   }
@@ -281,7 +282,20 @@ export function RequestPage() {
         </>
       )}
 
-      {approving && <ApprovalDialog request={request} onClose={closeApproval} onApproved={handleApproved} />}
+      {approving && (
+        <ApprovalDialog
+          request={request}
+          onClose={closeApproval}
+          onApproved={handleApproved}
+          next={(authorization) => (
+            <GeneratePixButton
+              authorization={authorization}
+              actionsClassName="modal-actions"
+              secondary={<button className="btn btn-secondary" type="button" onClick={closeApproval}>Pagar depois</button>}
+            />
+          )}
+        />
+      )}
     </div>
   )
 }

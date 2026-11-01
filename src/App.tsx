@@ -6,10 +6,11 @@ import { AuthorizationsPage } from './pages/AuthorizationsPage'
 import { AuthPage } from './pages/AuthPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { NewRequestPage } from './pages/NewRequestPage'
+import { OrderPage } from './pages/OrderPage'
+import { OrdersPage } from './pages/OrdersPage'
 import { PoliciesPage } from './pages/PoliciesPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { RequestPage } from './pages/RequestPage'
-import { SectionPage } from './pages/SectionPage'
 
 export function App() {
   return (
@@ -24,7 +25,8 @@ export function App() {
           <Route path="/politicas" element={<PoliciesPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="/autorizacoes" element={<AuthorizationsPage />} />
-          <Route path="/pedidos" element={<SectionPage section="orders" />} />
+          <Route path="/pedidos" element={<OrdersPage />} />
+          <Route path="/pedidos/:id" element={<OrderPage />} />
           <Route path="/auditoria" element={<AuditPage />} />
         </Route>
       </Route>

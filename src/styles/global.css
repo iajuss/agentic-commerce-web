@@ -116,6 +116,18 @@
 .authorization-items summary { width: fit-content; color: var(--green); font-size: var(--text-small); font-weight: 700; cursor: pointer; }
 .authorization-items ul { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: var(--space-2); font-size: var(--text-small); }
 .authorization-items li { display: flex; justify-content: space-between; gap: var(--space-4); }
+.order-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.pix { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--space-6); align-items: start; }
+.pix-total { font-size: var(--text-h2); line-height: var(--leading-h2); }
+.pix-qr { width: 180px; height: 180px; border-radius: var(--radius-md); background: var(--white); }
+.pix-copy { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pix-copy .input { flex: 1 1 220px; min-width: 0; }
+.pix-code { font-size: var(--text-small); font-variant-numeric: tabular-nums; }
+.pix-txid { overflow-wrap: anywhere; }
+.ticket-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.ticket { display: grid; gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.ticket-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-2); }
+.ticket p { overflow-wrap: anywhere; white-space: pre-line; }
 .policy-form-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-5); }
 .policy-fieldset { margin: 0; padding: 0; border: 0; }
 .policy-fieldset legend { padding: 0; margin-bottom: var(--space-2); }
@@ -214,7 +226,7 @@
   .main-nav a { justify-content: center; width: 48px; padding: 0; }
   .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button { display: none; }
   .sidebar-foot { grid-template-columns: 1fr; justify-items: center; }
-  .dashboard-grid, .basket { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-grid, .basket, .order-grid, .pix { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 720px) {

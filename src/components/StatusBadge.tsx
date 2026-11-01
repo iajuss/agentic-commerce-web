@@ -9,8 +9,11 @@ import {
   CreditCard,
   Hand,
   KeyRound,
+  LifeBuoy,
   ListOrdered,
   PackageCheck,
+  QrCode,
+  RotateCcw,
   SearchX,
   ShieldCheck,
   ShieldX,
@@ -55,11 +58,17 @@ const badges = {
     expirada: { label: 'Expirada', tone: 'neutral', icon: Clock },
   },
   pedido: {
+    aguardando_pagamento: { label: 'Falta pagar', tone: 'attention', icon: QrCode },
     pago: { label: 'Pago', tone: 'info', icon: CreditCard },
     enviado: { label: 'Enviado', tone: 'brand', icon: Truck },
     entregue: { label: 'Entregue', tone: 'success', icon: PackageCheck },
+    expirado: { label: 'Pix vencido', tone: 'neutral', icon: Clock },
     cancelado: { label: 'Cancelado', tone: 'neutral', icon: CircleX },
+    devolucao_solicitada: { label: 'Devolução pedida', tone: 'info', icon: RotateCcw },
     devolvido: { label: 'Devolvido', tone: 'warning', icon: Undo2 },
+  },
+  chamado: {
+    aberto: { label: 'Aberto', tone: 'info', icon: LifeBuoy },
   },
 } satisfies Record<string, Record<string, Badge>>
 
@@ -70,6 +79,11 @@ export type StatusKind = keyof Badges
 function badgeFor(kind: StatusKind, status: PropertyKey): Badge {
   const known = (badges[kind] as Record<PropertyKey, Badge | undefined>)[status]
   return known ?? { label: String(status).replace(/_/g, ' '), tone: 'neutral', icon: CircleDashed }
+}
+
+// Ícone do status, para quem precisa dele fora do selo (ex.: o histórico do pedido).
+export function statusIcon<K extends StatusKind>(kind: K, status: keyof Badges[K]) {
+  return badgeFor(kind, status).icon
 }
 
 export function StatusBadge<K extends StatusKind>({ kind, status }: { kind: K; status: keyof Badges[K] }) {

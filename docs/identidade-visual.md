@@ -187,7 +187,7 @@ Use sempre o componente; ele garante cor, ícone e texto iguais em todas as tela
 <StatusBadge kind="oferta" status="dentro" />         // dentro | fora | recomendada
 <StatusBadge kind="solicitacao" status="com_resultado" /> // processando | com_resultado | sem_resultado | aprovada | cancelada
 <StatusBadge kind="autorizacao" status="usada" />     // ativa | usada | revogada | expirada
-<StatusBadge kind="pedido" status="enviado" />        // pago | enviado | entregue | cancelado | devolvido
+<StatusBadge kind="pedido" status="enviado" />        // aguardando_pagamento | pago | enviado | entregue | expirado | cancelado | devolucao_solicitada | devolvido
 ```
 
 Status novo? Acrescente em `src/components/StatusBadge.tsx`, escolhendo o tom pela tabela de cores.

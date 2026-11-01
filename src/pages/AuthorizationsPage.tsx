@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Ban, CircleAlert, KeyRound, Search } from 'lucide-react'
 import { effectiveStatus, itemCount, listAuthorizations, revokeAuthorization, type Authorization } from '../api/autorizacoes'
+import { GeneratePixButton } from '../components/GeneratePixButton'
 import { StatusBadge } from '../components/StatusBadge'
 import { useResource } from '../hooks/useResource'
 import { atStores, formatBRL, formatDateTime, formatTime, joinList, plural } from '../utils/format'
@@ -131,7 +132,7 @@ export function AuthorizationsPage() {
         <div>
           <span className="text-label">Aprovação e pagamento</span>
           <h1 ref={headingRef} tabIndex={-1}>Autorizações</h1>
-          <p>Cada aprovação vira uma autorização limitada: um valor máximo, as lojas e os itens da cesta, uso único e validade curta. Enquanto ela estiver ativa, você pode revogar.</p>
+          <p>Cada aprovação vira uma autorização limitada: um valor máximo, as lojas e os itens da cesta, uso único e validade curta. Enquanto ela estiver ativa, você gera o Pix do pedido ou revoga.</p>
         </div>
       </header>
 
@@ -160,7 +161,7 @@ export function AuthorizationsPage() {
         <section className="stack" aria-labelledby="autorizacoes-ativas">
           <h2 id="autorizacoes-ativas">Ativas agora</h2>
           <div className="policy-grid">
-            {active.map((item) => <AuthorizationCard key={item.id} authorization={item} onRevoked={handleRevoked} />)}
+            {active.map((item) => <AuthorizationCard key={item.id} authorization={item} onRevoked={handleRevoked} action={<GeneratePixButton authorization={item} />} />)}
           </div>
           <p className="text-small text-muted">A primeira vence às {formatTime(active[active.length - 1].expira_em)}. As usadas viram pedidos; as revogadas e vencidas ficam na <Link to="/auditoria">auditoria</Link>.</p>
         </section>
