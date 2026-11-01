@@ -17,7 +17,8 @@
 .sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .sidebar-brand { display: inline-flex; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); color: var(--on-dark); }
 .sidebar-brand .brand-compact { display: none; height: 30px; }
-.environment-badge { padding: 2px var(--space-2); border: 1px solid var(--on-dark-line); border-radius: var(--radius-pill); color: var(--mint); font-size: var(--text-label); font-weight: 700; letter-spacing: var(--tracking-label); }
+.sidebar-toggle { flex: none; }
+.sidebar-toggle:focus-visible { outline-offset: calc(var(--focus-offset) * -1); }
 
 .main-nav { display: grid; gap: 2px; }
 .main-nav a, .main-nav button {
@@ -42,6 +43,32 @@
 
 .mobile-bar { display: none; }
 .app-content { min-width: 0; padding: var(--space-10) clamp(24px, 4vw, 56px) var(--space-16); }
+
+/* ---- Menu recolhível (computador; até 980px o menu já fica só com os ícones) ---- */
+/* A coluna do menu encolhe e o conteúdo acompanha na mesma transição. Os ícones não saem do
+   lugar: os textos ficam presos numa linha e somem aos poucos enquanto a coluna fecha. Ao
+   recolher, o que some só sai do foco do teclado depois da animação (visibility atrasada). */
+@media (min-width: 981px) {
+  .app-shell { transition: grid-template-columns var(--duration-slow) var(--ease-layout); }
+  .app-shell.is-collapsed { grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr); }
+  .sidebar { overflow-x: clip; }
+
+  .sidebar-brand, .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button {
+    transition: opacity var(--duration-slow) var(--ease-layout), visibility 0s;
+  }
+  .sidebar-brand { max-width: 160px; overflow: hidden; transition-property: opacity, visibility, max-width, padding; transition-duration: var(--duration-slow), 0s, var(--duration-slow), var(--duration-slow); transition-timing-function: var(--ease-layout); }
+  .main-nav a { overflow: hidden; white-space: nowrap; }
+  .main-nav a .lucide { flex: none; }
+
+  .is-collapsed .sidebar-brand { max-width: 0; padding-inline: 0; }
+  .is-collapsed .sidebar-brand, .is-collapsed .main-nav .nav-label, .is-collapsed .user-summary, .is-collapsed .sidebar-foot .icon-button {
+    opacity: 0; visibility: hidden;
+    transition-property: opacity, visibility, max-width, padding;
+    transition-duration: var(--duration-slow), 0s, var(--duration-slow), var(--duration-slow);
+    transition-delay: 0s, var(--duration-slow), 0s, 0s;
+    transition-timing-function: var(--ease-layout);
+  }
+}
 
 /* ---- Página ------------------------------------------------------------------ */
 .page { max-width: var(--content-max); margin: 0 auto; display: grid; gap: var(--space-6); }
@@ -78,7 +105,7 @@
 .composer input::placeholder { color: var(--muted); }
 .composer:focus-within { outline: var(--focus-width) solid var(--focus-on-dark); outline-offset: var(--focus-offset); }
 
-.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: var(--space-6); align-items: start; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: var(--space-6); align-items: stretch; }
 .journey-list { list-style: none; margin: 0; padding: var(--space-6); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5); }
 .journey-item { display: grid; gap: var(--space-2); align-content: start; }
 .journey-item strong { display: block; margin-bottom: var(--space-1); }
@@ -175,9 +202,11 @@
 .alternatives[open] summary { margin-bottom: var(--space-4); }
 
 /* ---- Estado vazio e telas ainda reservadas ------------------------------------ */
-.empty-state { min-height: 220px; display: grid; justify-items: center; align-content: center; gap: var(--space-2); text-align: center; color: var(--muted); }
+.empty-state { min-height: 220px; display: grid; justify-items: center; align-content: center; gap: var(--space-2); padding: var(--space-8) var(--space-6); text-align: center; color: var(--muted); }
 .empty-state strong { color: var(--ink); }
-.empty-state p { max-width: 430px; font-size: var(--text-small); }
+/* Largo o bastante para a descrição caber em duas linhas no computador; o balance divide as linhas por igual. */
+.empty-state p { max-width: 600px; font-size: var(--text-small); text-wrap: balance; }
+.empty-state .btn, .empty-state .row { margin-top: var(--space-2); }
 .empty-state-icon { width: 48px; height: 48px; display: grid; place-items: center; margin-bottom: var(--space-2); border-radius: 50%; background: var(--green-soft); color: var(--green); }
 .section-actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
 
@@ -218,10 +247,10 @@
   .auth-panel { place-items: start center; padding: var(--space-8) var(--space-5); }
   .auth-form-wrap .mobile-brand { display: block; margin-bottom: var(--space-4); }
 
-  .app-shell { grid-template-columns: 76px minmax(0, 1fr); }
+  .app-shell { grid-template-columns: var(--sidebar-collapsed) minmax(0, 1fr); }
   .sidebar { align-items: center; padding-inline: var(--space-3); }
   .sidebar-top { justify-content: center; }
-  .sidebar-brand .brand-full, .environment-badge { display: none; }
+  .sidebar-brand .brand-full, .sidebar-toggle { display: none; }
   .sidebar-brand .brand-compact { display: block; }
   .main-nav a { justify-content: center; width: 48px; padding: 0; }
   .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button { display: none; }

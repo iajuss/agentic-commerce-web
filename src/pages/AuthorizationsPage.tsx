@@ -170,7 +170,7 @@ export function AuthorizationsPage() {
           <div className="empty-state">
             <span className="empty-state-icon"><KeyRound aria-hidden="true" /></span>
             <strong>Nenhuma autorização ativa.</strong>
-            <p>Quando você aprovar uma cesta, a autorização aparece aqui por alguns minutos, até virar pedido. As usadas, revogadas e vencidas ficam na auditoria.</p>
+            <p>Quando você aprovar uma cesta, a autorização fica aqui por alguns minutos, até virar pedido. As antigas ficam na auditoria.</p>
             <Link className="btn btn-primary" to="/compras/nova"><Search aria-hidden="true" />Nova compra</Link>
           </div>
         </section>
