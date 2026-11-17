@@ -4,6 +4,7 @@ import { ArrowRight, Plus, Search, ShieldCheck } from 'lucide-react'
 import { listPolicies, mainPolicy, type Policy } from '../api/politicas'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../contexts/AuthContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { categoryLabel } from '../utils/categories'
 import { formatBRL } from '../utils/format'
@@ -70,6 +71,7 @@ export function DashboardPage() {
   const policy = policies && mainPolicy(policies)
   const navigate = useNavigate()
   const [description, setDescription] = useState('')
+  useDocumentTitle('Início')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

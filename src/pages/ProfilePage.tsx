@@ -4,6 +4,7 @@ import { getProfile, maskCep, onlyDigits, PROFILE_FIELDS, updateProfile, type Pr
 import { FieldError } from '../components/FieldError'
 import { TagInput } from '../components/TagInput'
 import { useAuth } from '../contexts/AuthContext'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { formatDateTime, parseBRL, titleCase, toBRLInput } from '../utils/format'
 import { formErrors, type FormErrors } from '../utils/forms'
@@ -246,6 +247,7 @@ function ProfileForm({ profile, onSaved }: { profile: Profile; onSaved: (profile
 export function ProfilePage() {
   const { updateUser } = useAuth()
   const { data: profile, error, loading, reload, setData } = useResource(getProfile)
+  useDocumentTitle('Seu perfil')
 
   function handleSaved(updated: Profile) {
     setData(updated)

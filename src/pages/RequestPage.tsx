@@ -9,6 +9,7 @@ import { ApprovalDialog } from '../components/ApprovalDialog'
 import { GeneratePixButton } from '../components/GeneratePixButton'
 import { OfferCard } from '../components/OfferCard'
 import { StatusBadge } from '../components/StatusBadge'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { formatBRL, formatDateTime, joinList, plural } from '../utils/format'
 
@@ -191,6 +192,7 @@ export function RequestPage() {
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
   const approveButtonRef = useRef<HTMLButtonElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
+  useDocumentTitle(request ? requestTitle(request) : 'Sua lista')
 
   if (loading && !request) {
     return (

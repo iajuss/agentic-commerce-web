@@ -27,6 +27,7 @@ import {
 } from '../api/pedidos'
 import { FieldError } from '../components/FieldError'
 import { StatusBadge, statusIcon } from '../components/StatusBadge'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { formatBRL, formatDateTime, formatTime, joinList, plural } from '../utils/format'
 import { formErrors, type FormErrors } from '../utils/forms'
@@ -477,6 +478,7 @@ export function OrderPage() {
   const { data: order, error, loading, reload, setData } = useResource(load)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const status = order?.status
+  useDocumentTitle(order ? `Pedido ${orderCode(order.id)}` : 'Pedido')
 
   useEffect(() => {
     if (!status || !isMoving(status)) return

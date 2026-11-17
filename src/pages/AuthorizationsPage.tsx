@@ -4,6 +4,7 @@ import { Ban, CircleAlert, KeyRound, Search } from 'lucide-react'
 import { effectiveStatus, itemCount, listAuthorizations, revokeAuthorization, type Authorization } from '../api/autorizacoes'
 import { GeneratePixButton } from '../components/GeneratePixButton'
 import { StatusBadge } from '../components/StatusBadge'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { atStores, formatBRL, formatDateTime, formatTime, joinList, plural } from '../utils/format'
 
@@ -111,6 +112,7 @@ export function AuthorizationsPage() {
   const headingRef = useRef<HTMLHeadingElement>(null)
   // A API já filtra as vencidas; a tela também esconde as que venceram enquanto estava aberta.
   const [now, setNow] = useState(() => Date.now())
+  useDocumentTitle('Autorizações')
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000)
