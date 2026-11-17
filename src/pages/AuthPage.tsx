@@ -5,6 +5,7 @@ import { Brand } from '../components/Brand'
 import { FieldError } from '../components/FieldError'
 import { demoMode } from '../api/auth'
 import { getHealth } from '../api/client'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useAuth } from '../contexts/AuthContext'
 import { formErrors, type FormErrors } from '../utils/forms'
 
@@ -22,6 +23,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors<Field> | null>(null)
   const [serverDown, setServerDown] = useState(false)
+  useDocumentTitle(mode === 'login' ? 'Entrar' : 'Criar conta')
 
   // Avisa antes de a pessoa digitar tudo se a API ou o banco estiverem fora do ar.
   useEffect(() => {

@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, CircleAlert, Package, Search } from 'lucide-react'
 import { listOrders, orderCode } from '../api/pedidos'
 import { StatusBadge } from '../components/StatusBadge'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { formatBRL, formatDateTime, plural } from '../utils/format'
 
 export function OrdersPage() {
   const { data: orders, error, loading, reload } = useResource(listOrders)
   const waiting = orders?.filter((order) => order.status === 'aguardando_pagamento').length ?? 0
+  useDocumentTitle('Pedidos')
 
   return (
     <div className="page page-enter">

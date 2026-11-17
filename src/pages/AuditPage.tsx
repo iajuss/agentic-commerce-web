@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { listAuditEvents, type AuditEvent, type AuditPage as AuditPageData } from '../api/auditoria'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { formatBRL, formatDateTime, formatTime } from '../utils/format'
 
@@ -125,6 +126,7 @@ export function AuditPage() {
   const { data, error, loading, reload, setData } = useResource<AuditPageData>(load)
   const [loadingMore, setLoadingMore] = useState(false)
   const [moreError, setMoreError] = useState('')
+  useDocumentTitle('Auditoria')
   const events = data?.eventos
 
   async function loadMore() {

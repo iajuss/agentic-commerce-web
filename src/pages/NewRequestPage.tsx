@@ -4,6 +4,7 @@ import { ArrowRight, ChevronRight, CircleAlert, CircleCheck, History, Search } f
 import { createRequest, listRequests, REQUEST_FIELDS, REQUEST_MAX_LENGTH, requestTitle } from '../api/solicitacoes'
 import { FieldError } from '../components/FieldError'
 import { StatusBadge } from '../components/StatusBadge'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { formatBRL, formatDateTime, plural } from '../utils/format'
 import { formErrors, type FormErrors } from '../utils/forms'
@@ -77,6 +78,7 @@ export function NewRequestPage() {
   const [errors, setErrors] = useState<FormErrors<(typeof REQUEST_FIELDS)[number]> | null>(null)
   const fieldRef = useRef<HTMLTextAreaElement>(null)
   const fieldError = errors?.fields.texto
+  useDocumentTitle('Nova compra')
 
   useEffect(() => { if (errors) fieldRef.current?.focus() }, [errors])
 

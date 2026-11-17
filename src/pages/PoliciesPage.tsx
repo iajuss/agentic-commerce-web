@@ -4,6 +4,7 @@ import { ApiError } from '../api/client'
 import { createPolicy, deletePolicy, getPolicy, listPolicies, policyToInput, updatePolicy, type Policy, type PolicyInput } from '../api/politicas'
 import { PolicyForm } from '../components/PolicyForm'
 import { StatusBadge } from '../components/StatusBadge'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
 import { categoryLabel } from '../utils/categories'
 import { formatBRL, formatDateTime, titleCase } from '../utils/format'
@@ -152,6 +153,7 @@ export function PoliciesPage() {
   const [notice, setNotice] = useState('')
   const newButtonRef = useRef<HTMLButtonElement>(null)
   const focusAfterRender = useRef<string | null>(null)
+  useDocumentTitle('Políticas de compra')
 
   // Depois que a tela atualiza, o foco volta para o botão que abriu o formulário (ou o do card criado).
   useEffect(() => {
