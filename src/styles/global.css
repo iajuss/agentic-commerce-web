@@ -38,7 +38,7 @@
 
 /* O avatar fica centrado numa coluna da largura de um item do menu: alinhado com os ícones, aberto ou recolhido. */
 .sidebar-foot .avatar { justify-self: center; }
-.sidebar-foot { margin-top: auto; display: grid; grid-template-columns: var(--sidebar-item) minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--on-dark-line); }
+.sidebar-foot { margin-top: auto; display: grid; grid-template-columns: var(--sidebar-item) minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-3); padding-top: var(--space-4); border-top: 1px solid var(--on-dark-line); }
 .avatar { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--mint); color: var(--on-accent); font-family: var(--font-brand); font-weight: 800; }
 .user-summary { min-width: 0; display: grid; font-size: var(--text-caption); line-height: 1.35; }
 .user-summary strong { color: var(--on-dark); font-size: var(--text-small); }
@@ -270,6 +270,10 @@
   .mobile-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); background: var(--paper); color: var(--ink); }
   .mobile-bar .brand { height: 22px; }
   .mobile-bar .avatar { width: 32px; height: 32px; font-size: var(--text-small); }
+  .mobile-bar-actions { display: flex; align-items: center; gap: var(--space-2); }
+  /* A barra do celular fica sobre o papel, não sobre o verde-escuro do menu. */
+  .mobile-bar .icon-button { width: var(--control-h); height: var(--control-h); color: var(--muted); }
+  .mobile-bar .icon-button:hover { background: var(--surface-2); color: var(--ink); }
 
   .sidebar { position: fixed; inset: auto 0 0 0; z-index: 10; height: auto; flex-direction: row; padding: 6px var(--space-2) calc(6px + env(safe-area-inset-bottom, 0px)); }
   .sidebar-top, .sidebar-foot { display: none; }

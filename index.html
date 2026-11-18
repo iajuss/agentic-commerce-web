@@ -8,6 +8,13 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <meta name="description" content="Agentic Commerce — compre por intenção com autonomia sob controle." />
     <title>Agentic Commerce</title>
+    <script>
+      // Aplica o tema escolhido antes de o React carregar, para a tela não piscar no tema errado.
+      try {
+        var tema = localStorage.getItem('agentic-commerce:tema')
+        if (tema === 'light' || tema === 'dark') document.documentElement.dataset.theme = tema
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

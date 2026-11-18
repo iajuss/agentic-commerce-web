@@ -5,16 +5,19 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
   ScrollText,
   Search,
   ShieldCheck,
+  Sun,
   UserRound,
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../hooks/useTheme'
 import { Brand } from './Brand'
 
 type NavItem = { to: string; label: string; short?: string; icon: LucideIcon }
@@ -56,7 +59,15 @@ export function AppLayout() {
   const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(readCollapsed)
+  const { theme, toggleTheme } = useTheme()
   const initial = user?.nome?.charAt(0).toUpperCase() || 'U'
+  const themeLabel = theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'
+  const ThemeIcon = theme === 'dark' ? Sun : Moon
+  const themeButton = (
+    <button className="icon-button theme-toggle" type="button" onClick={toggleTheme} title={themeLabel} aria-label={themeLabel}>
+      <ThemeIcon aria-hidden="true" />
+    </button>
+  )
 
   function toggleCollapsed() {
     setCollapsed((current) => {
@@ -74,7 +85,10 @@ export function AppLayout() {
     <div className={collapsed ? 'app-shell is-collapsed' : 'app-shell'}>
       <header className="mobile-bar">
         <NavLink to="/inicio" aria-label="agentic, ir para o início"><Brand /></NavLink>
-        <span className="avatar" aria-hidden="true">{initial}</span>
+        <div className="mobile-bar-actions">
+          {themeButton}
+          <span className="avatar" aria-hidden="true">{initial}</span>
+        </div>
       </header>
 
       <aside className="sidebar" id="menu-lateral">
@@ -133,6 +147,7 @@ export function AppLayout() {
             <strong>{user?.nome}</strong>
             <span>{user?.email}</span>
           </div>
+          {themeButton}
           <button className="icon-button" type="button" onClick={handleLogout} title="Sair" aria-label="Sair">
             <LogOut aria-hidden="true" />
           </button>
