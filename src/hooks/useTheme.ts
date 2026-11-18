@@ -1,51 +1,35 @@
 import { useEffect, useState } from 'react'
 
-export type Theme = 'light' | 'dark'
+export type ThemePreference = 'light' | 'dark' | 'system'
 
 // Mesma chave lida pelo script em index.html, que aplica o tema antes da primeira pintura (sem piscar).
 const THEME_KEY = 'agentic-commerce:tema'
-const DARK_QUERY = '(prefers-color-scheme: dark)'
 
-function readSaved(): Theme | null {
+function readPreference(): ThemePreference {
   try {
     const saved = window.localStorage.getItem(THEME_KEY)
-    return saved === 'light' || saved === 'dark' ? saved : null
+    return saved === 'light' || saved === 'dark' ? saved : 'system'
   } catch {
-    return null
+    return 'system'
   }
 }
 
-function systemTheme(): Theme {
-  return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light'
-}
-
-// Sem escolha salva, o tema segue o sistema. Ao clicar no botão, a escolha vale neste navegador.
+// "system" tira o data-theme do <html> e o CSS volta a seguir o prefers-color-scheme.
+// A escolha vale para este navegador, não para a conta.
 export function useTheme() {
-  const [saved, setSaved] = useState<Theme | null>(readSaved)
-  const [system, setSystem] = useState<Theme>(systemTheme)
-  const theme = saved ?? system
+  const [preference, setPreference] = useState<ThemePreference>(readPreference)
 
   useEffect(() => {
-    const media = window.matchMedia(DARK_QUERY)
-    const onChange = () => setSystem(media.matches ? 'dark' : 'light')
-    media.addEventListener('change', onChange)
-    return () => media.removeEventListener('change', onChange)
-  }, [])
-
-  useEffect(() => {
-    if (saved) document.documentElement.dataset.theme = saved
-    else delete document.documentElement.dataset.theme
-  }, [saved])
-
-  function toggleTheme() {
-    const next: Theme = theme === 'dark' ? 'light' : 'dark'
-    setSaved(next)
+    const root = document.documentElement
+    if (preference === 'system') delete root.dataset.theme
+    else root.dataset.theme = preference
     try {
-      window.localStorage.setItem(THEME_KEY, next)
+      if (preference === 'system') window.localStorage.removeItem(THEME_KEY)
+      else window.localStorage.setItem(THEME_KEY, preference)
     } catch {
       // Sem storage, a escolha vale só até recarregar a página.
     }
-  }
+  }, [preference])
 
-  return { theme, toggleTheme }
+  return { preference, setPreference }
 }
