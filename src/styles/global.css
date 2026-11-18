@@ -46,6 +46,22 @@
 .icon-button { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--on-dark-muted); cursor: pointer; }
 .icon-button:hover { background: var(--on-dark-hover); color: var(--on-dark); }
 
+/* Interruptor de tema: primeira linha do rodapé, abaixo da divisória e ocupando a largura toda. O trilho pequeno
+   mostra se o escuro está ligado. */
+.theme-row {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-3);
+  min-height: 42px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-md);
+  background: transparent; color: var(--on-dark-muted);
+  font: inherit; font-size: 15px; font-weight: 500; text-align: left; cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+.theme-row:hover { background: var(--on-dark-hover); color: var(--on-dark); }
+.theme-row .nav-label { flex: 1; }
+.theme-track { position: relative; flex: none; width: 30px; height: 18px; border-radius: var(--radius-pill); background: var(--on-dark-line); transition: background var(--duration-fast) var(--ease); }
+.theme-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--on-dark-muted); transition: transform var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease); }
+[aria-checked="true"] > .theme-track { background: var(--mint); }
+[aria-checked="true"] > .theme-track::after { transform: translateX(12px); background: var(--on-accent); }
+
 .mobile-bar { display: none; }
 .app-content { min-width: 0; padding: var(--space-10) clamp(24px, 4vw, 56px) var(--space-16); }
 
@@ -60,15 +76,16 @@
   .sidebar-top { transition: gap var(--duration-slow) var(--ease-layout); }
   .is-collapsed .sidebar-top { gap: 0; }
 
-  .sidebar-brand, .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button {
+  .sidebar-brand, .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button, .theme-row .nav-label, .theme-row .theme-track {
     transition: opacity var(--duration-slow) var(--ease-layout), visibility 0s;
   }
   .sidebar-brand { max-width: 160px; overflow: hidden; transition-property: opacity, visibility, max-width, padding; transition-duration: var(--duration-slow), 0s, var(--duration-slow), var(--duration-slow); transition-timing-function: var(--ease-layout); }
-  .main-nav a { overflow: hidden; white-space: nowrap; }
+  .main-nav a, .theme-row { overflow: hidden; white-space: nowrap; }
   .main-nav a .lucide { flex: none; }
 
   .is-collapsed .sidebar-brand { max-width: 0; padding-inline: 0; }
-  .is-collapsed .sidebar-brand, .is-collapsed .main-nav .nav-label, .is-collapsed .user-summary, .is-collapsed .sidebar-foot .icon-button {
+  .is-collapsed .sidebar-brand, .is-collapsed .main-nav .nav-label, .is-collapsed .user-summary, .is-collapsed .sidebar-foot .icon-button,
+  .is-collapsed .theme-row .nav-label, .is-collapsed .theme-row .theme-track {
     opacity: 0; visibility: hidden;
     transition-property: opacity, visibility, max-width, padding;
     transition-duration: var(--duration-slow), 0s, var(--duration-slow), var(--duration-slow);
@@ -260,7 +277,8 @@
   .sidebar-brand .brand-full, .sidebar-toggle { display: none; }
   .sidebar-brand .brand-compact { display: block; }
   .main-nav a { justify-content: center; width: 48px; padding: 0; }
-  .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button { display: none; }
+  .main-nav .nav-label, .user-summary, .sidebar-foot .icon-button, .theme-row .nav-label, .theme-row .theme-track { display: none; }
+  .theme-row { justify-content: center; width: 48px; padding: 0; }
   .sidebar-foot { grid-template-columns: 1fr; justify-items: center; }
   .dashboard-grid, .basket, .order-grid, .pix { grid-template-columns: minmax(0, 1fr); }
 }
@@ -283,6 +301,7 @@
   .more-sheet a, .more-sheet button { display: flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-md); background: transparent; color: var(--on-dark); font-size: var(--text-body); text-decoration: none; cursor: pointer; }
   .more-sheet a:hover, .more-sheet button:hover { background: var(--on-dark-hover); }
   .more-sheet a[aria-current="page"] { background: var(--sidebar-active); }
+  .more-sheet .theme-track { margin-left: auto; }
 
   .app-content { padding: var(--space-6) var(--space-4) 104px; }
   .page { gap: var(--space-5); }
