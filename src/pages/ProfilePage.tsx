@@ -6,10 +6,49 @@ import { TagInput } from '../components/TagInput'
 import { useAuth } from '../contexts/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useResource } from '../hooks/useResource'
+import { useTheme, type ThemePreference } from '../hooks/useTheme'
 import { formatDateTime, parseBRL, titleCase, toBRLInput } from '../utils/format'
 import { formErrors, type FormErrors } from '../utils/forms'
 
 type Field = (typeof PROFILE_FIELDS)[number]
+
+const THEMES: { value: ThemePreference; title: string; text: string }[] = [
+  { value: 'system', title: 'Seguir o sistema', text: 'Claro ou escuro, igual ao seu computador ou celular.' },
+  { value: 'light', title: 'Claro', text: 'Fundo de papel, sempre.' },
+  { value: 'dark', title: 'Escuro', text: 'Fundo verde-escuro, sempre.' },
+]
+
+// Fica fora do formulário: muda na hora e não depende de "Salvar perfil".
+function AppearancePanel() {
+  const { preference, setPreference } = useTheme()
+
+  return (
+    <section className="panel" aria-labelledby="perfil-aparencia">
+      <div className="panel-header"><h2 id="perfil-aparencia">Aparência</h2></div>
+      <div className="panel-body">
+        <fieldset className="field policy-fieldset" aria-describedby="perfil-aparencia-dica">
+          <legend className="field-label">Tema</legend>
+          <div className="profile-choices">
+            {THEMES.map((option) => (
+              <label className="choice" key={option.value}>
+                <input
+                  type="radio"
+                  name="perfil-tema"
+                  value={option.value}
+                  checked={preference === option.value}
+                  onChange={() => setPreference(option.value)}
+                />
+                <strong>{option.title}</strong>
+                <p>{option.text}</p>
+              </label>
+            ))}
+          </div>
+          <span className="field-hint" id="perfil-aparencia-dica">Muda na hora e vale só para este navegador.</span>
+        </fieldset>
+      </div>
+    </section>
+  )
+}
 
 function errorMessage(caught: unknown) {
   return caught instanceof Error ? caught.message : 'Não foi possível concluir. Tente de novo.'
@@ -288,6 +327,8 @@ export function ProfilePage() {
       {profile && (
         <ProfileForm profile={profile} onSaved={handleSaved} />
       )}
+
+      <AppearancePanel />
     </div>
   )
 }
