@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Moon,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
@@ -15,6 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../hooks/useTheme'
 import { Brand } from './Brand'
 
 type NavItem = { to: string; label: string; short?: string; icon: LucideIcon }
@@ -56,6 +58,7 @@ export function AppLayout() {
   const navigate = useNavigate()
   const [moreOpen, setMoreOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(readCollapsed)
+  const { isDark, toggleTheme } = useTheme()
   const initial = user?.nome?.charAt(0).toUpperCase() || 'U'
 
   function toggleCollapsed() {
@@ -123,11 +126,19 @@ export function AppLayout() {
                 <Icon aria-hidden="true" />{label}
               </NavLink>
             ))}
+            <button type="button" role="switch" aria-checked={isDark} onClick={toggleTheme}><Moon aria-hidden="true" />Modo escuro<span className="theme-track" aria-hidden="true" /></button>
             <button type="button" onClick={handleLogout}><LogOut aria-hidden="true" />Sair</button>
           </div>
         )}
 
         <div className="sidebar-foot">
+          {/* Interruptor discreto abaixo da divisória, junto da conta: a linha inteira é o botão, o trilho só mostra o estado. */}
+          <button className="theme-row" type="button" role="switch" aria-checked={isDark} onClick={toggleTheme} title={collapsed ? 'Modo escuro' : undefined}>
+            <Moon aria-hidden="true" />
+            <span className="nav-label">Modo escuro</span>
+            <span className="theme-track" aria-hidden="true" />
+          </button>
+
           <span className="avatar" aria-hidden="true">{initial}</span>
           <div className="user-summary">
             <strong>{user?.nome}</strong>
