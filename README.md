@@ -126,7 +126,7 @@ Projeto da disciplina **Programação Eficaz**, apresentado em 03/11/2026.
 
 ## 🧭 Telas e rotas da API
 
-As 11 telas usam as **27 rotas** da API. Toda tela, menos `/entrar` e `/cadastro`, exige login.
+As 11 telas usam as **28 rotas** da API. Toda tela, menos `/entrar` e `/cadastro`, exige login.
 
 | Tela | O que faz | Rotas da API usadas |
 |---|---|---|
@@ -134,7 +134,7 @@ As 11 telas usam as **27 rotas** da API. Toda tela, menos `/entrar` e `/cadastro
 | `/cadastro` | Cria a conta e já entra | `POST /usuarios`, `POST /sessoes` |
 | `/inicio` | Visão geral da jornada e da política principal | `GET /politicas` |
 | `/compras/nova` | Lista de compras em texto livre e histórico | `POST /solicitacoes`, `GET /solicitacoes` |
-| `/compras/{id}` | Cesta explicada, alternativas, cancelamento, aprovação com senha e geração do Pix | `GET /solicitacoes/{id}`, `DELETE /solicitacoes/{id}`, `GET /politicas`, `POST /solicitacoes/{id}/autorizacoes`, `GET /autorizacoes/{id}`, `POST /pedidos` |
+| `/compras/{id}` | Cesta explicada, troca da oferta por uma alternativa, cancelamento, aprovação com senha e geração do Pix | `GET /solicitacoes/{id}`, `PATCH /solicitacoes/{id}/itens/{indice}`, `DELETE /solicitacoes/{id}`, `GET /politicas`, `POST /solicitacoes/{id}/autorizacoes`, `GET /autorizacoes/{id}`, `POST /pedidos` |
 | `/politicas` | Cria, edita, ativa e remove políticas | `GET /politicas`, `POST /politicas`, `GET /politicas/{id}`, `PUT /politicas/{id}`, `DELETE /politicas/{id}` |
 | `/perfil` | Dados, preferências, orçamento e endereço pelo CEP | `GET /usuarios/me`, `PATCH /usuarios/me` |
 | `/autorizacoes` | Autorizações ativas, geração do Pix e revogação | `GET /autorizacoes`, `DELETE /autorizacoes/{id}`, `POST /pedidos` |
@@ -166,7 +166,7 @@ flowchart LR
 
 | Conceito | Critério | Onde conferir |
 |---|---|---|
-| **C+** | Cada rota da API usada por alguma tela do React | [Telas e rotas da API](#-telas-e-rotas-da-api): as 27 rotas |
+| **C+** | Cada rota da API usada por alguma tela do React | [Telas e rotas da API](#-telas-e-rotas-da-api): as 28 rotas |
 | **A** | Login, logout e rotas privadas no React | `AuthContext`, `ProtectedRoute` e o botão **Sair** |
 | **A+** | Build do React servido pelo nginx na EC2, com o link no README do front | <http://54.209.228.101> |
 
@@ -337,7 +337,7 @@ agentic-commerce-web/
 | Documento | Conteúdo |
 |---|---|
 | 🎨 [Identidade visual](docs/identidade-visual.md) | Regras obrigatórias de cores, tipografia, componentes, ícones, acessibilidade e tom de voz |
-| 🔗 [Integração com o backend](docs/integracao-backend.md) | Ambientes, convenções, máquinas de estado, referência das 27 rotas e roteiro de validação |
+| 🔗 [Integração com o backend](docs/integracao-backend.md) | Ambientes, convenções, máquinas de estado, referência das 28 rotas e roteiro de validação |
 | 📄 [Contrato da API](docs/contrato-api.md) | Resumo do que cada tela usa da API |
 | 📋 [Regras do projeto](AGENTS.md) | Arquitetura, convenções e o que conferir antes de um PR |
 | 🧠 [Contrato de integração do backend](https://github.com/iajuss/agentic-commerce-api/blob/main/docs/plano-backend/00-contrato-de-integracao.md) | A fonte da verdade das rotas, campos e status |

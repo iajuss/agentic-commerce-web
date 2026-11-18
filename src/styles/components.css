@@ -256,6 +256,8 @@ textarea.input { min-height: 120px; resize: vertical; line-height: var(--leading
 .offer-rank { display: grid; justify-items: center; align-content: start; gap: 2px; }
 .offer-rank b { font-family: var(--font-brand); font-size: 34px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
 .offer-rank span { font-size: var(--text-label); font-weight: 700; letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--muted); }
+/* Na escolha da pessoa, o ícone ocupa o lugar do número do ranking. */
+.offer-rank .lucide { width: 30px; height: 30px; color: var(--green); }
 .offer-main { min-width: 0; display: grid; gap: var(--space-4); }
 .offer-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: var(--space-3) var(--space-6); }
 .offer-title { font-family: var(--font-brand); font-size: var(--text-h3); line-height: var(--leading-h3); font-weight: 700; letter-spacing: var(--tracking-h3); }

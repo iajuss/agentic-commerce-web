@@ -254,7 +254,7 @@ stateDiagram-v2
 
 ---
 
-## 5. Referência das rotas (27)
+## 5. Referência das rotas (28)
 
 | # | Método e rota | Pública | Sucesso | Erros |
 |---|---|---|---|---|
@@ -285,6 +285,7 @@ stateDiagram-v2
 | 25 | `GET /pedidos/{id}/chamados` | | 200 | 404 |
 | 26 | `GET /pedidos/{id}/chamados/{chamado_id}` | | 200 | 404 |
 | 27 | `GET /auditoria?limite=&antes_de=` | | 200 | 400 |
+| 28 | `PATCH /solicitacoes/{id}/itens/{indice}` | | 200 | 400, 404, 409 |
 
 Todas as rotas não públicas também podem responder `401`.
 
@@ -497,8 +498,9 @@ Como ler cada campo:
 |---|---|---|
 | `itens[].quantidade` | **Número de embalagens** da recomendada a comprar (a API ajusta: "2 kg de feijão" com pacote de 1 kg vira 2) | "2 × Leite Integral UHT 1L" |
 | `itens[].status` | `com_oferta` ou `sem_oferta` | Item sem oferta: aviso e fora da cesta |
-| `itens[].recomendada` | A oferta escolhida para o item (`null` em `sem_oferta`) | Card principal do item |
-| `itens[].alternativas` | Até 4 outras ofertas, já ranqueadas | **Só informativas**: não há rota para trocar a oferta escolhida |
+| `itens[].recomendada` | A oferta que está na cesta: a do agente ou a que a pessoa escolheu (`null` em `sem_oferta`) | Card principal do item |
+| `itens[].sugestao_do_agente` | `id_externo` da oferta que o agente recomendou (ausente em solicitações antigas) | Selo "Recomendada"; "Sua escolha" quando difere da `recomendada` |
+| `itens[].alternativas` | Até 4 outras ofertas, já ranqueadas | Botão "Escolher esta" antes da aprovação (`PATCH /solicitacoes/{id}/itens/{indice}`) |
 | `itens[].descartadas` | Ofertas removidas pelas políticas ou pela idade | "2 ofertas descartadas" |
 | `itens[].explicacao` | Frases do **item**: quantas ofertas, descartes e motivos, ajuste de embalagem ("Você pediu 2 kg: 2 embalagens de 1 kg") | Lista de texto |
 | `recomendada.explicacao` | Frases de **por que esta oferta**: preço por unidade, frete, prazo, avaliação, marca preferida ou evitada, embalagem pedida | Lista de texto ou chips |
@@ -548,6 +550,12 @@ O `texto` é `null` quando a solicitação foi criada com `itens`. Nesse caso, m
 **`DELETE /solicitacoes/{id}`** → `204`. Só vale em `aguardando_aprovacao` e `sem_resultado`, e **apaga** a
 solicitação. Em qualquer outro status:
 `409 {"erro": "Esta solicitação já foi aprovada e não pode ser cancelada."}`.
+
+**`PATCH /solicitacoes/{id}/itens/{indice}`** com `{"id_externo": "..."}` → `200` com a solicitação completa. Põe
+uma das `alternativas` do item (`indice` a partir de 0) na cesta e recalcula embalagens, `cesta` e `avaliacao` pelas
+políticas atuais; a oferta que saiu vira a primeira alternativa. Oferta fora das alternativas → `400` com
+`detalhes.id_externo`; item inexistente → `404`; fora de `aguardando_aprovacao` →
+`409 {"erro": "Só dá para trocar a oferta antes de aprovar a compra."}`.
 
 ### 5.4 Aprovação e autorizações
 

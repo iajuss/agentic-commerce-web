@@ -20,6 +20,7 @@ import {
   Sparkle,
   Truck,
   Undo2,
+  UserRoundCheck,
   Zap,
   type LucideIcon,
 } from 'lucide-react'
@@ -43,6 +44,7 @@ const badges = {
     dentro: { label: 'Dentro da política', tone: 'success', icon: ShieldCheck },
     fora: { label: 'Fora da política', tone: 'danger', icon: ShieldX },
     recomendada: { label: 'Recomendada', tone: 'accent', icon: Sparkle },
+    escolhida: { label: 'Sua escolha', tone: 'brand', icon: UserRoundCheck },
   },
   solicitacao: {
     aguardando_aprovacao: { label: 'Esperando você', tone: 'attention', icon: ListOrdered },
