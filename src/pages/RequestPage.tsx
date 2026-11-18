@@ -4,7 +4,7 @@ import { CheckCheck, CircleAlert, CircleCheck, Clock, Search, SearchX, ShieldChe
 import type { Authorization } from '../api/autorizacoes'
 import { ApiError } from '../api/client'
 import { listPolicies } from '../api/politicas'
-import { canApprove, cancelRequest, canCancel, getRequest, requestTitle, type PurchaseRequest, type RequestItem } from '../api/solicitacoes'
+import { agentPickId, canApprove, cancelRequest, canCancel, chooseOffer, getRequest, requestTitle, type PurchaseRequest, type RequestItem } from '../api/solicitacoes'
 import { ApprovalDialog } from '../components/ApprovalDialog'
 import { GeneratePixButton } from '../components/GeneratePixButton'
 import { OfferCard } from '../components/OfferCard'
@@ -147,29 +147,84 @@ function BasketPanel({ request, policyName, action }: { request: PurchaseRequest
   )
 }
 
-function ItemSection({ item, index }: { item: RequestItem; index: number }) {
+type ItemSectionProps = {
+  item: RequestItem
+  index: number
+  // Só antes da aprovação dá para trocar a oferta; depois, as alternativas ficam só para consulta.
+  onChoose?: (index: number, offerId: string) => Promise<PurchaseRequest>
+}
+
+function ItemSection({ item, index, onChoose }: ItemSectionProps) {
   const headingId = `item-${index}`
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const [choosing, setChoosing] = useState<string | null>(null)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const notes = [...item.explicacao]
   if (item.descartadas) notes.push(`${plural(item.descartadas, 'oferta descartada', 'ofertas descartadas')} pelas políticas`)
   // A quantidade é de embalagens da oferta, não a que a pessoa escreveu ("2 kg de feijão" vira 2 pacotes de 1 kg).
   // Quando a API ajustou, a explicação já conta; senão, a tela diz quantas embalagens entram na cesta.
   if (item.recomendada && !notes.some((note) => /embalage/i.test(note))) notes.unshift(`${plural(item.quantidade, 'embalagem', 'embalagens')} na cesta`)
 
+  const agentId = agentPickId(item)
+  const swapped = Boolean(item.recomendada && agentId && item.recomendada.id_externo !== agentId)
+
+  async function choose(offerId: string) {
+    if (!onChoose) return
+    setError('')
+    setNotice('')
+    setChoosing(offerId)
+    try {
+      const updated = await onChoose(index, offerId)
+      const chosen = updated.itens[index]?.recomendada
+      setNotice(`Coloquei ${chosen?.titulo ?? 'a oferta'} na cesta. O total agora é ${formatBRL(updated.cesta.total)}.`)
+      // O botão clicado some (a oferta sobe para a cesta), então o foco volta para o nome do item.
+      window.requestAnimationFrame(() => headingRef.current?.focus())
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setChoosing(null)
+    }
+  }
+
   return (
     <li className="basket-item" aria-labelledby={headingId}>
       <div className="basket-item-head">
-        <h3 id={headingId}>{item.descricao}</h3>
+        <h3 id={headingId} ref={headingRef} tabIndex={-1}>{item.descricao}</h3>
         {notes.length > 0 && <span className="text-caption">{notes.join(' · ')}</span>}
       </div>
+      <p className="sr-only" role="status">{notice}</p>
+      {error && <p className="field-error" role="alert"><CircleAlert aria-hidden="true" />{error}</p>}
       {item.recomendada ? (
         <>
-          <OfferCard offer={item.recomendada} position={1} quantity={item.quantidade} />
+          <OfferCard offer={item.recomendada} position={1} quantity={item.quantidade} inBasket agentPick={!swapped} />
           {item.alternativas.length > 0 && (
-            <details className="alternatives">
-              <summary>Ver {plural(item.alternativas.length, 'alternativa')}</summary>
+            <details className="alternatives" open={swapped || undefined}>
+              <summary>{onChoose ? `Trocar por ${plural(item.alternativas.length, 'alternativa')}` : `Ver ${plural(item.alternativas.length, 'alternativa')}`}</summary>
               <ol className="offer-list">
                 {item.alternativas.map((offer, position) => (
-                  <li key={offer.id_externo}><OfferCard offer={offer} position={position + 2} quantity={item.quantidade} /></li>
+                  <li key={offer.id_externo}>
+                    <OfferCard
+                      offer={offer}
+                      // Depois de uma troca, a 1ª alternativa é a recomendação do agente, que volta a ser o 1º lugar.
+                      position={position + (swapped ? 1 : 2)}
+                      quantity={item.quantidade}
+                      inBasket={false}
+                      agentPick={offer.id_externo === agentId}
+                      actions={onChoose && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          type="button"
+                          onClick={() => choose(offer.id_externo)}
+                          aria-busy={choosing === offer.id_externo}
+                          disabled={choosing !== null}
+                          aria-describedby={`oferta-${offer.id_externo}`}
+                        >
+                          {choosing === offer.id_externo ? 'Trocando…' : offer.id_externo === agentId ? 'Voltar para a recomendação' : 'Escolher esta'}
+                        </button>
+                      )}
+                    />
+                  </li>
                 ))}
               </ol>
             </details>
@@ -223,6 +278,15 @@ export function RequestPage() {
   }
 
   const policyName = policies?.find((policy) => policy.id === request.avaliacao.politica_id)?.nome ?? null
+
+  const canChoose = request.status === 'aguardando_aprovacao'
+  const requestId = request.id
+
+  async function handleChoose(index: number, offerId: string) {
+    const updated = await chooseOffer(requestId, index, offerId)
+    setData(updated)
+    return updated
+  }
 
   function handleApproved(authorization: Authorization) {
     setData((current) => current && { ...current, status: 'aprovada', atualizada_em: authorization.criada_em })
@@ -278,7 +342,7 @@ export function RequestPage() {
           <section className="stack" aria-labelledby="itens-titulo">
             <h2 id="itens-titulo">Itens da lista</h2>
             <ol className="basket-items">
-              {request.itens.map((item, index) => <ItemSection key={`${item.descricao}-${index}`} item={item} index={index} />)}
+              {request.itens.map((item, index) => <ItemSection key={`${item.descricao}-${index}`} item={item} index={index} onChoose={canChoose ? handleChoose : undefined} />)}
             </ol>
           </section>
         </>

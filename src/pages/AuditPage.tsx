@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ArrowLeftRight,
   Ban,
   CircleAlert,
   CircleX,
@@ -57,6 +58,7 @@ function describe(event: AuditEvent): Described {
       return { actor: 'voce', icon: Search, title: `Você mandou uma lista${items}` }
     }
     case 'solicitacao_cancelada': return { actor: 'voce', icon: CircleX, title: 'Você cancelou uma lista' }
+    case 'oferta_trocada': return { actor: 'voce', icon: ArrowLeftRight, title: `Você trocou a oferta de um item; a cesta ficou${money(dados)}` }
     case 'autorizacao_emitida':
       return dados?.origem === 'automatica'
         ? { actor: 'agente', icon: Zap, title: 'Aprovei a cesta sozinho, dentro da sua política automática' }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { MessageSquareText, Star, Store, Truck } from 'lucide-react'
+import { MessageSquareText, Star, Store, Truck, UserRoundCheck } from 'lucide-react'
 import type { Offer } from '../api/solicitacoes'
 import { formatBRL } from '../utils/format'
 import { StatusBadge } from './StatusBadge'
@@ -9,6 +9,9 @@ type OfferCardProps = {
   // Lugar no ranking do item: 1 é a recomendada, as alternativas vêm depois.
   position: number
   quantity: number
+  // Se é a oferta que está na cesta e se foi a que o agente recomendou. Por padrão, a 1ª é as duas coisas.
+  inBasket?: boolean
+  agentPick?: boolean
   actions?: ReactNode
 }
 
@@ -25,16 +28,24 @@ function freight(offer: Offer) {
 }
 
 // Card de oferta ranqueada da identidade visual: posição, preço, selos e o motivo em frases curtas.
-export function OfferCard({ offer, position, quantity, actions }: OfferCardProps) {
+// O título do "porquê" muda conforme quem escolheu: o agente, a pessoa ou ninguém (alternativa).
+function whyTitle(inBasket: boolean, agentPick: boolean, position: number) {
+  if (agentPick) return inBasket ? 'Por que escolhi esta' : 'Por que eu tinha recomendado esta'
+  if (inBasket) return 'O que pesou no ranking'
+  return `Por que ficou em ${position}º`
+}
+
+export function OfferCard({ offer, position, quantity, inBasket = position === 1, agentPick = position === 1, actions }: OfferCardProps) {
   const titleId = `oferta-${offer.id_externo}`
-  const isTop = position === 1
   const perUnit = unitPrice(offer)
+  // A escolha da pessoa fica no topo, mas não é o 1º lugar do ranking: mostra quem escolheu no lugar do número.
+  const userPick = inBasket && !agentPick
 
   return (
-    <article className="offer" data-top={isTop || undefined} aria-labelledby={titleId}>
+    <article className="offer" data-top={inBasket || undefined} aria-labelledby={titleId}>
       <div className="offer-rank" aria-hidden="true">
-        <b>{position}</b>
-        <span>Lugar</span>
+        {userPick ? <UserRoundCheck /> : <b>{position}</b>}
+        <span>{userPick ? 'Você' : 'Lugar'}</span>
       </div>
 
       <div className="offer-main">
@@ -43,7 +54,7 @@ export function OfferCard({ offer, position, quantity, actions }: OfferCardProps
             {offer.imagem && <img className="offer-thumb" src={offer.imagem} alt="" loading="lazy" />}
             <div>
               <h4 className="offer-title" id={titleId}>
-                <span className="sr-only">{position}º lugar: </span>
+                <span className="sr-only">{userPick ? 'Sua escolha: ' : `${position}º lugar: `}</span>
                 {offer.titulo}
               </h4>
               <div className="offer-store">
@@ -67,11 +78,16 @@ export function OfferCard({ offer, position, quantity, actions }: OfferCardProps
           </div>
         </div>
 
-        {isTop && <div className="offer-badges"><StatusBadge kind="oferta" status="recomendada" /></div>}
+        {(agentPick || userPick) && (
+          <div className="offer-badges">
+            {userPick && <StatusBadge kind="oferta" status="escolhida" />}
+            {agentPick && <StatusBadge kind="oferta" status="recomendada" />}
+          </div>
+        )}
 
         {offer.explicacao.length > 0 && (
           <div className="offer-why">
-            <h4><MessageSquareText aria-hidden="true" />{isTop ? 'Por que escolhi esta' : `Por que ficou em ${position}º`}</h4>
+            <h4><MessageSquareText aria-hidden="true" />{whyTitle(inBasket, agentPick, position)}</h4>
             <ul className="offer-reasons">{offer.explicacao.map((reason) => <li key={reason}>{reason}</li>)}</ul>
           </div>
         )}

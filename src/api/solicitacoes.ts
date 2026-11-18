@@ -37,8 +37,13 @@ export type RequestItem = {
   descricao: string
   // Embalagens da recomendada a comprar, a mesma que entra no subtotal ("2 kg de feijão" com o pacote de 1 kg vira 2).
   quantidade: number
+  // Quantidade que a pessoa pediu, antes do ajuste à embalagem. Solicitações antigas não têm.
+  quantidade_pedida?: number
   status: 'com_oferta' | 'sem_oferta'
+  // A oferta que está na cesta: a do agente ou a que a pessoa escolheu entre as alternativas.
   recomendada: Offer | null
+  // id_externo da oferta que o agente escolheu. Ausente em solicitações antigas: aí é a própria recomendada.
+  sugestao_do_agente?: string | null
   alternativas: Offer[]
   // Quantas ofertas as políticas tiraram da lista deste item.
   descartadas: number
@@ -97,6 +102,17 @@ export function listRequests() {
 export function getRequest(id: string) {
   if (demoMode) return demo.get(id)
   return apiRequest<PurchaseRequest>(`/solicitacoes/${id}`)
+}
+
+// Troca a oferta do item (índice a partir de 0) por uma das alternativas; volta a solicitação recalculada.
+export function chooseOffer(id: string, index: number, offerId: string) {
+  if (demoMode) return demo.choose(id, index, offerId)
+  return apiRequest<PurchaseRequest>(`/solicitacoes/${id}/itens/${index}`, { method: 'PATCH', body: { id_externo: offerId } })
+}
+
+// A oferta do item que o agente recomendou (em solicitações antigas, a que está na cesta).
+export function agentPickId(item: Pick<RequestItem, 'recomendada' | 'sugestao_do_agente'>) {
+  return item.sugestao_do_agente ?? item.recomendada?.id_externo ?? null
 }
 
 // O DELETE remove a solicitação: ela sai do histórico.
@@ -217,11 +233,17 @@ function build(texto: string): Omit<PurchaseRequest, 'id' | 'criada_em' | 'atual
       quantidade,
       status: recomendada ? 'com_oferta' : 'sem_oferta',
       recomendada,
+      sugestao_do_agente: recomendada?.id_externo ?? null,
       alternativas: alternativas.slice(0, 4),
       descartadas: 0,
       explicacao: [recomendada ? `${count} ${count === 1 ? 'oferta encontrada' : 'ofertas encontradas'}` : 'Nenhuma oferta encontrada para este item'],
     }
   })
+  return { texto, itens: items, ...summarize(items), compra_automatica: null }
+}
+
+// Cesta, avaliação e status a partir das ofertas que estão na cesta: na criação e depois de cada troca.
+function summarize(items: RequestItem[]): Pick<PurchaseRequest, 'cesta' | 'avaliacao' | 'status'> {
   const chosen = items.filter((item) => item.recomendada)
   const subtotal = round(chosen.reduce((sum, item) => sum + itemTotal(item), 0))
   // O frete é cobrado uma vez por loja: vale o maior frete entre os itens daquela loja.
@@ -233,12 +255,9 @@ function build(texto: string): Omit<PurchaseRequest, 'id' | 'criada_em' | 'atual
   const frete = round([...freightByStore.values()].reduce((sum, value) => sum + value, 0))
   const total = round(subtotal + frete)
   return {
-    texto,
-    itens: items,
     cesta: { subtotal, frete, total, lojas: [...freightByStore.keys()] },
     avaliacao: evaluate(items, total, demoPoliciesSnapshot()),
     status: chosen.length ? 'aguardando_aprovacao' : 'sem_resultado',
-    compra_automatica: null,
   }
 }
 
@@ -290,6 +309,25 @@ const demo = {
   async get(id: string) {
     await wait(250)
     return structuredClone(demoFindRequest(id))
+  },
+  // Mesmas regras do PATCH do backend; no demo a quantidade não depende da embalagem, então não muda.
+  async choose(id: string, index: number, offerId: string) {
+    await wait()
+    const request = demoFindRequest(id)
+    const item = request.itens[index] ?? notFound('Item não encontrado.')
+    if (request.status !== 'aguardando_aprovacao') throw new ApiError('Só dá para trocar a oferta antes de aprovar a compra.', 409)
+    const current = item.recomendada
+    if (!current) throw new ApiError('Oferta inválida.', 400, { id_externo: 'Este item não tem ofertas para escolher.' })
+    if (current.id_externo === offerId) return structuredClone(request)
+    const chosen = item.alternativas.find((offer) => offer.id_externo === offerId)
+    if (!chosen) throw new ApiError('Oferta inválida.', 400, { id_externo: 'Escolha uma das alternativas deste item.' })
+
+    item.sugestao_do_agente ??= current.id_externo
+    item.recomendada = chosen
+    item.alternativas = [current, ...item.alternativas.filter((offer) => offer !== chosen)]
+    Object.assign(request, summarize(request.itens), { atualizada_em: nowIso() })
+    recordDemoEvent('oferta_trocada', { tipo: 'solicitacao', id }, { item: index, de: current.id_externo, para: offerId, total: request.cesta.total })
+    return structuredClone(request)
   },
   async cancel(id: string) {
     await wait()
